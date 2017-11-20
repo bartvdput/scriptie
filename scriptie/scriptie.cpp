@@ -22,6 +22,9 @@
 #include <ogdf/planarity/VariableEmbeddingInserter.h>
 #include <ogdf/planarity/PlanarizationGridLayout.h>
 #include <ogdf/planarity/PlanRep.h>
+#include <ogdf/planarity/PlanarSubgraphBoyerMyrvold.h>
+#include <ogdf/module/CrossingMinimizationModule.h>
+#include <ogdf/planarity/MaximumPlanarSubgraph.h>
 
 using namespace ogdf;
 using namespace std;
@@ -46,13 +49,15 @@ const double PI = 3.141592653589793238463;
 const double CROSSINGS = 2;
 
 int main() {
-	test();
+	//test();
 
 	Graph test;
 	GraphAttributes testAttributes(test, GraphAttributes::nodeGraphics | GraphAttributes::edgeGraphics | GraphAttributes::nodeLabel | GraphAttributes::nodeStyle | GraphAttributes::edgeType | GraphAttributes::edgeArrow | GraphAttributes::edgeStyle);
 
-	CreateGraphTwo(test, testAttributes);
-	OrthogonalLayout(test, testAttributes);
+	//CreateGraphTwo(test, testAttributes);
+	randomSimpleGraph(test, 20, 40);
+	SetGraphLayout(test, testAttributes);
+	PlanarRepresentation(test, testAttributes);
 
 	// construct graph
 	Graph graph;
@@ -105,8 +110,31 @@ void test() {
 }
 
 void PlanarRepresentation(Graph& G, GraphAttributes& GA) {
-	PlanRep PR = PlanRep(G);
-	cout << "number of CCs: " << PR.numberOfCCs() << endl;
+	cout << "Edges before: " << G.edges.size() << endl;
+
+	//PlanarSubgraphBoyerMyrvold ps;
+	List<edge> deletedEdges;
+	MaximumPlanarSubgraph ps;
+	ps.call(G, deletedEdges);
+	
+	cout << "Deleted edges: " << endl;
+	for (edge e: deletedEdges) {
+		cout << "edge: " << e->source() << " --- " << e->target() << endl;
+		G.delEdge(e);
+	}
+	cout << endl << endl;
+	cout << "Edges after: " << G.edges.size() << endl;
+
+	cout << endl << endl;
+	cout << endl << endl;
+	cout << "IS PLANAR? " << isPlanar(G) << endl;
+
+	PlanarizationGridLayout pgl;
+
+	pgl.call(GA);
+	GraphIO::write(GA, "C:\\Users\\Bart\\Desktop\\Output4.svg", GraphIO::drawSVG);
+
+	cout << "Number of crossings: " << pgl.numberOfCrossings() << endl;
 }
 
 void OrthogonalLayout(Graph& G, GraphAttributes& GA) {
@@ -299,11 +327,12 @@ void SetGraphLayout(Graph& G, GraphAttributes& GA) {
 		GA.height(v) = NODE_SIZE; // set the height to 20.0
 		GA.width(v) = NODE_SIZE; // set the width to 40.0
 		GA.shape(v) = ogdf::Shape::Rect;
+		//GA.label(v) = v->index();
 	}
 
 	for (edge e : G.edges) {// set default edge color and type
 		GA.arrowType(e) = ogdf::EdgeArrow::None;
-		GA.strokeColor(e) = Color("#0000FF");
+		GA.strokeColor(e) = Color("#bababa");
 	}
 }
 
