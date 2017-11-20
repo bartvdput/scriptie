@@ -14,17 +14,30 @@
 #include <ogdf/layered/OptimalRanking.h>
 #include <ogdf/layered/MedianHeuristic.h>
 #include <ogdf/layered/OptimalHierarchyLayout.h>
+#include <ogdf/orthogonal/OrthoLayout.h>
+#include <ogdf/planarity/EmbedderMinDepthMaxFaceLayers.h>
+#include <ogdf/planarity/PlanarSubgraphFast.h>
+#include <ogdf/planarity/PlanarizationLayout.h>
+#include <ogdf/planarity/SubgraphPlanarizer.h>
+#include <ogdf/planarity/VariableEmbeddingInserter.h>
+#include <ogdf/planarity/PlanarizationGridLayout.h>
+#include <ogdf/planarity/PlanRep.h>
 
 using namespace ogdf;
 using namespace std;
 
 void CreateGraph(Graph&, GraphAttributes&);
+void CreateGraphTwo(Graph&, GraphAttributes&);
+
 void BendPromotion(Graph&, GraphAttributes&);
 void SetGraphLayout(Graph&, GraphAttributes&);
 double BendCriterium(Graph&, GraphAttributes&);
 double CrossingCriterium(Graph&, GraphAttributes&, double);
 double NodeOrthogonalityCriterium(Graph&, GraphAttributes&);
 double EdgeOrthogonalityCriterium(Graph&, GraphAttributes&);
+void OrthogonalLayout(Graph&, GraphAttributes&);
+void PlanarRepresentation(Graph&, GraphAttributes&);
+void test();
 
 const double NODE_SIZE = 20.0;
 const double PI = 3.141592653589793238463;
@@ -33,6 +46,14 @@ const double PI = 3.141592653589793238463;
 const double CROSSINGS = 2;
 
 int main() {
+	test();
+
+	Graph test;
+	GraphAttributes testAttributes(test, GraphAttributes::nodeGraphics | GraphAttributes::edgeGraphics | GraphAttributes::nodeLabel | GraphAttributes::nodeStyle | GraphAttributes::edgeType | GraphAttributes::edgeArrow | GraphAttributes::edgeStyle);
+
+	CreateGraphTwo(test, testAttributes);
+	OrthogonalLayout(test, testAttributes);
+
 	// construct graph
 	Graph graph;
 	GraphAttributes graphAttributes(graph, GraphAttributes::nodeGraphics | GraphAttributes::edgeGraphics |	GraphAttributes::nodeLabel | GraphAttributes::nodeStyle |	GraphAttributes::edgeType |	GraphAttributes::edgeArrow | GraphAttributes::edgeStyle	);
@@ -65,6 +86,33 @@ int main() {
 	GraphIO::write(graphAttributesCopy, "C:\\Users\\Bart\\Desktop\\Output2.svg", GraphIO::drawSVG);
 
 	return 0;
+}
+
+void test() {
+	Graph G;
+	GraphAttributes GA(G, GraphAttributes::nodeGraphics | GraphAttributes::edgeGraphics | GraphAttributes::nodeLabel | GraphAttributes::nodeStyle | GraphAttributes::edgeType | GraphAttributes::edgeArrow | GraphAttributes::edgeStyle);
+
+	randomSimpleGraph(G, 100, 150);
+	SubgraphPlanarizer SP;
+	SP.setSubgraph(new PlanarSubgraphFast<int>);
+	SP.setInserter(new VariableEmbeddingInserter);
+	int crossNum;
+	PlanRep PR(G);
+	SP.call(PR, 0, crossNum);
+	cout << crossNum << " crossings" << endl;
+	cout << isPlanar(G) << " planar" << endl;
+	GraphIO::write(PR, "C:\\Users\\Bart\\Desktop\\test.gml", GraphIO::writeGML);
+}
+
+void PlanarRepresentation(Graph& G, GraphAttributes& GA) {
+	PlanRep PR = PlanRep(G);
+	cout << "number of CCs: " << PR.numberOfCCs() << endl;
+}
+
+void OrthogonalLayout(Graph& G, GraphAttributes& GA) {
+	PlanarizationGridLayout pgl;
+	pgl.call(GA);
+	GraphIO::write(GA, "C:\\Users\\Bart\\Desktop\\Output3.svg", GraphIO::drawSVG);
 }
 
 void BendPromotion(Graph& G, GraphAttributes& GA) {
@@ -100,61 +148,6 @@ void BendPromotion(Graph& G, GraphAttributes& GA) {
 
 			G.delEdge(e);
 		}
-	}
-}
-
-// create testGraph to test criteria imlementations
-void CreateGraph(Graph& G, GraphAttributes& GA) {
-	// add nodes
-	node zero = G.newNode();
-	node one = G.newNode();
-	node two = G.newNode();
-	node three = G.newNode();
-	node four = G.newNode();
-
-	// set node positions
-	GA.x(zero) = 4 * NODE_SIZE;
-	GA.y(zero) = 0;
-
-	GA.x(one) = 4 * NODE_SIZE;
-	GA.y(one) = 4 * NODE_SIZE;
-
-	GA.x(two) = 0;
-	GA.y(two) = 2 * NODE_SIZE;
-
-	GA.x(three) = 4 * NODE_SIZE;
-	GA.y(three) = 8 * NODE_SIZE;
-
-	GA.x(four) = 0;
-	GA.y(four) = 8 * NODE_SIZE;
-
-	// add edges
-	edge zero_one = G.newEdge(zero, one);
-	edge zero_three = G.newEdge(zero, three);
-	edge zero_four = G.newEdge(zero, four);
-	edge one_two = G.newEdge(one, two);
-	edge one_three = G.newEdge(one, three);
-	edge two_three = G.newEdge(two, three);
-
-	DPolyline &p = GA.bends(zero_three);
-	p.pushBack(DPoint(6 * NODE_SIZE, 2 * NODE_SIZE));
-	p.pushBack(DPoint(6 * NODE_SIZE, 6 * NODE_SIZE));
-}
-
-void SetGraphLayout(Graph& G, GraphAttributes& GA) {
-	for (node v : G.nodes) {
-		GA.height(v) = NODE_SIZE; // set the height to 20.0
-		GA.width(v) = NODE_SIZE; // set the width to 40.0
-		GA.shape(v) = ogdf::Shape::Rect;
-
-		string s = to_string(v->index());
-		char const *pchar = s.c_str(); //use char const* as target type
-		GA.label(v) = pchar;
-	}
-
-	for (edge e : G.edges) {// set default edge color and type
-		GA.arrowType(e) = ogdf::EdgeArrow::None;
-		GA.strokeColor(e) = Color("#0000FF");
 	}
 }
 
@@ -261,4 +254,98 @@ double NodeOrthogonalityCriterium(Graph& G, GraphAttributes& GA) {
 	double Nno = G.nodes.size() / A;
 
 	return Nno;
+}
+
+// create testGraph to test criteria imlementations
+void CreateGraph(Graph& G, GraphAttributes& GA) {
+	// add nodes
+	node zero = G.newNode();
+	node one = G.newNode();
+	node two = G.newNode();
+	node three = G.newNode();
+	node four = G.newNode();
+
+	// set node positions
+	GA.x(zero) = 4 * NODE_SIZE;
+	GA.y(zero) = 0;
+
+	GA.x(one) = 4 * NODE_SIZE;
+	GA.y(one) = 4 * NODE_SIZE;
+
+	GA.x(two) = 0;
+	GA.y(two) = 2 * NODE_SIZE;
+
+	GA.x(three) = 4 * NODE_SIZE;
+	GA.y(three) = 8 * NODE_SIZE;
+
+	GA.x(four) = 0;
+	GA.y(four) = 8 * NODE_SIZE;
+
+	// add edges
+	edge zero_one = G.newEdge(zero, one);
+	edge zero_three = G.newEdge(zero, three);
+	edge zero_four = G.newEdge(zero, four);
+	edge one_two = G.newEdge(one, two);
+	edge one_three = G.newEdge(one, three);
+	edge two_three = G.newEdge(two, three);
+
+	DPolyline &p = GA.bends(zero_three);
+	p.pushBack(DPoint(6 * NODE_SIZE, 2 * NODE_SIZE));
+	p.pushBack(DPoint(6 * NODE_SIZE, 6 * NODE_SIZE));
+}
+
+void SetGraphLayout(Graph& G, GraphAttributes& GA) {
+	for (node v : G.nodes) {
+		GA.height(v) = NODE_SIZE; // set the height to 20.0
+		GA.width(v) = NODE_SIZE; // set the width to 40.0
+		GA.shape(v) = ogdf::Shape::Rect;
+	}
+
+	for (edge e : G.edges) {// set default edge color and type
+		GA.arrowType(e) = ogdf::EdgeArrow::None;
+		GA.strokeColor(e) = Color("#0000FF");
+	}
+}
+
+// create testGraph to test criteria imlementations
+void CreateGraphTwo(Graph& graph, GraphAttributes& GA) {
+	// add nodes
+	node A = graph.newNode();	
+	node B = graph.newNode();	
+	node C = graph.newNode();	
+	node D = graph.newNode();	
+	node E = graph.newNode();	
+	node F = graph.newNode();	
+	node G = graph.newNode();	
+	node S = graph.newNode();
+	node T = graph.newNode();
+
+	GA.label(A) = "A";
+	GA.label(B) = "B";
+	GA.label(C) = "C";
+	GA.label(D) = "D";
+	GA.label(E) = "E";
+	GA.label(F) = "F";
+	GA.label(G) = "G";
+	GA.label(S) = "S";
+	GA.label(T) = "T";
+
+	// add edgraphes
+	edge AB = graph.newEdge(A, B);
+	edge AC = graph.newEdge(A, C);
+	edge AG = graph.newEdge(A, G);
+	edge BC = graph.newEdge(B, C);
+	edge BG = graph.newEdge(B, G);
+	edge CS = graph.newEdge(C, S);
+	edge CT = graph.newEdge(C, T);
+	edge DE = graph.newEdge(D, E);
+	edge DT = graph.newEdge(D, T);
+	edge ET = graph.newEdge(E, T);
+	edge FS = graph.newEdge(F, S);
+	edge GS = graph.newEdge(G, S);
+
+	for (edge e : graph.edges) {// set default edge color and type
+		GA.arrowType(e) = ogdf::EdgeArrow::None;
+		GA.strokeColor(e) = Color("#0000FF");
+	}
 }
