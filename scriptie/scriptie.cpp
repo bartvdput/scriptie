@@ -25,6 +25,7 @@
 #include <ogdf/planarity/PlanarSubgraphBoyerMyrvold.h>
 #include <ogdf/module/CrossingMinimizationModule.h>
 #include <ogdf/planarity/MaximumPlanarSubgraph.h>
+#include <ogdf/energybased/FMMMLayout.h>
 
 using namespace ogdf;
 using namespace std;
@@ -40,7 +41,7 @@ double NodeOrthogonalityCriterium(Graph&, GraphAttributes&);
 double EdgeOrthogonalityCriterium(Graph&, GraphAttributes&);
 void OrthogonalLayout(Graph&, GraphAttributes&);
 void PlanarRepresentation(Graph&, GraphAttributes&);
-void test();
+void GetDegrees(Graph&);
 
 const double NODE_SIZE = 20.0;
 const double PI = 3.141592653589793238463;
@@ -49,14 +50,15 @@ const double PI = 3.141592653589793238463;
 const double CROSSINGS = 2;
 
 int main() {
-	//test();
-
 	Graph test;
 	GraphAttributes testAttributes(test, GraphAttributes::nodeGraphics | GraphAttributes::edgeGraphics | GraphAttributes::nodeLabel | GraphAttributes::nodeStyle | GraphAttributes::edgeType | GraphAttributes::edgeArrow | GraphAttributes::edgeStyle);
 
 	//CreateGraphTwo(test, testAttributes);
-	randomSimpleGraph(test, 20, 40);
+	randomSimpleGraph(test, 20, 30);
 	SetGraphLayout(test, testAttributes);
+
+	GetDegrees(test);
+
 	PlanarRepresentation(test, testAttributes);
 
 	// construct graph
@@ -93,27 +95,18 @@ int main() {
 	return 0;
 }
 
-void test() {
-	Graph G;
-	GraphAttributes GA(G, GraphAttributes::nodeGraphics | GraphAttributes::edgeGraphics | GraphAttributes::nodeLabel | GraphAttributes::nodeStyle | GraphAttributes::edgeType | GraphAttributes::edgeArrow | GraphAttributes::edgeStyle);
-
-	randomSimpleGraph(G, 100, 150);
-	SubgraphPlanarizer SP;
-	SP.setSubgraph(new PlanarSubgraphFast<int>);
-	SP.setInserter(new VariableEmbeddingInserter);
-	int crossNum;
-	PlanRep PR(G);
-	SP.call(PR, 0, crossNum);
-	cout << crossNum << " crossings" << endl;
-	cout << isPlanar(G) << " planar" << endl;
-	GraphIO::write(PR, "C:\\Users\\Bart\\Desktop\\test.gml", GraphIO::writeGML);
+void GetDegrees(Graph&G) {
+	for (node n : G.nodes) {
+		cout << "Node " << n->index() << " degree: " << n->degree() << endl;
+	}
 }
 
 void PlanarRepresentation(Graph& G, GraphAttributes& GA) {
 	cout << "Edges before: " << G.edges.size() << endl;
 
-	//PlanarSubgraphBoyerMyrvold ps;
 	List<edge> deletedEdges;
+
+	//PlanarSubgraphBoyerMyrvold ps;
 	MaximumPlanarSubgraph ps;
 	ps.call(G, deletedEdges);
 	
@@ -165,14 +158,14 @@ void BendPromotion(Graph& G, GraphAttributes& GA) {
 
 				edge e_ = G.newEdge(s, n);
 				GA.arrowType(e_) = ogdf::EdgeArrow::None;
-				GA.strokeColor(e_) = Color("#0000FF");
+				GA.strokeColor(e_) = Color("#bababa");
 				s = n;
 
 				bends_e.popFront();
 			}
 			edge e_ = G.newEdge(s, t);
 			GA.arrowType(e_) = ogdf::EdgeArrow::None;
-			GA.strokeColor(e_) = Color("#0000FF");
+			GA.strokeColor(e_) = Color("#bababa");
 
 			G.delEdge(e);
 		}
@@ -327,7 +320,10 @@ void SetGraphLayout(Graph& G, GraphAttributes& GA) {
 		GA.height(v) = NODE_SIZE; // set the height to 20.0
 		GA.width(v) = NODE_SIZE; // set the width to 40.0
 		GA.shape(v) = ogdf::Shape::Rect;
-		//GA.label(v) = v->index();
+		
+		string s = to_string(v->index());
+		char const *pchar = s.c_str(); //use char const* as target type
+		GA.label(v) = pchar;
 	}
 
 	for (edge e : G.edges) {// set default edge color and type
@@ -375,6 +371,6 @@ void CreateGraphTwo(Graph& graph, GraphAttributes& GA) {
 
 	for (edge e : graph.edges) {// set default edge color and type
 		GA.arrowType(e) = ogdf::EdgeArrow::None;
-		GA.strokeColor(e) = Color("#0000FF");
+		GA.strokeColor(e) = Color("#bababa");
 	}
 }
