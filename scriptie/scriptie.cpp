@@ -25,7 +25,8 @@
 #include <ogdf/planarity/PlanarSubgraphBoyerMyrvold.h>
 #include <ogdf/module/CrossingMinimizationModule.h>
 #include <ogdf/planarity/MaximumPlanarSubgraph.h>
-#include <ogdf/energybased/FMMMLayout.h>
+#include <ogdf/graphalg/Clusterer.h>
+#include <ogdf/orthogonal/EdgeRouter.h>
 
 using namespace ogdf;
 using namespace std;
@@ -42,6 +43,8 @@ double EdgeOrthogonalityCriterium(Graph&, GraphAttributes&);
 void OrthogonalLayout(Graph&, GraphAttributes&);
 void PlanarRepresentation(Graph&, GraphAttributes&);
 void GetDegrees(Graph&);
+void CriteriaTesting();
+void SubGraphPlan(Graph&, GraphAttributes& GA);
 
 const double NODE_SIZE = 20.0;
 const double PI = 3.141592653589793238463;
@@ -56,14 +59,22 @@ int main() {
 	//CreateGraphTwo(test, testAttributes);
 	randomSimpleGraph(test, 20, 30);
 	SetGraphLayout(test, testAttributes);
-
-	GetDegrees(test);
+		
+	SubGraphPlan(test, testAttributes);
 
 	PlanarRepresentation(test, testAttributes);
 
+	GetDegrees(test);
+
+	CriteriaTesting();
+
+	return 0;
+}
+
+void CriteriaTesting() {
 	// construct graph
 	Graph graph;
-	GraphAttributes graphAttributes(graph, GraphAttributes::nodeGraphics | GraphAttributes::edgeGraphics |	GraphAttributes::nodeLabel | GraphAttributes::nodeStyle |	GraphAttributes::edgeType |	GraphAttributes::edgeArrow | GraphAttributes::edgeStyle	);
+	GraphAttributes graphAttributes(graph, GraphAttributes::nodeGraphics | GraphAttributes::edgeGraphics | GraphAttributes::nodeLabel | GraphAttributes::nodeStyle | GraphAttributes::edgeType | GraphAttributes::edgeArrow | GraphAttributes::edgeStyle);
 
 	Graph graphCopy;
 	GraphAttributes graphAttributesCopy(graphCopy, GraphAttributes::nodeGraphics | GraphAttributes::edgeGraphics | GraphAttributes::nodeLabel | GraphAttributes::nodeStyle | GraphAttributes::edgeType | GraphAttributes::edgeArrow | GraphAttributes::edgeStyle);
@@ -91,8 +102,20 @@ int main() {
 	//draw graphs
 	GraphIO::write(graphAttributes, "C:\\Users\\Bart\\Desktop\\Output.svg", GraphIO::drawSVG);
 	GraphIO::write(graphAttributesCopy, "C:\\Users\\Bart\\Desktop\\Output2.svg", GraphIO::drawSVG);
+}
 
-	return 0;
+void SubGraphPlan(Graph& G, GraphAttributes& GA) {
+	PlanRep PR = PlanRep(G);
+	SubgraphPlanarizer SP;
+	int crossNum;
+	SP.call(PR, 0, crossNum, nullptr, nullptr, nullptr);
+	cout << "CROSSNUM: " << crossNum << endl;
+
+	PlanarizationGridLayout pgl;
+
+	pgl.call(GA);
+	GraphIO::write(GA, "C:\\Users\\Bart\\Desktop\\Output5.svg", GraphIO::drawSVG);
+
 }
 
 void GetDegrees(Graph&G) {
@@ -106,8 +129,8 @@ void PlanarRepresentation(Graph& G, GraphAttributes& GA) {
 
 	List<edge> deletedEdges;
 
-	//PlanarSubgraphBoyerMyrvold ps;
-	MaximumPlanarSubgraph ps;
+	PlanarSubgraphBoyerMyrvold ps;
+	//MaximumPlanarSubgraph ps;
 	ps.call(G, deletedEdges);
 	
 	cout << "Deleted edges: " << endl;
