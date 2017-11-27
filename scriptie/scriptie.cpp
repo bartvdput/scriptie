@@ -27,6 +27,7 @@
 #include <ogdf/planarity/MaximumPlanarSubgraph.h>
 #include <ogdf/graphalg/Clusterer.h>
 #include <ogdf/orthogonal/EdgeRouter.h>
+#include <ogdf/planarity/VariableEmbeddingInserter.h>
 
 using namespace ogdf;
 using namespace std;
@@ -44,7 +45,9 @@ void OrthogonalLayout(Graph&, GraphAttributes&);
 void PlanarRepresentation(Graph&, GraphAttributes&);
 void GetDegrees(Graph&);
 void CriteriaTesting();
-void SubGraphPlan(Graph&, GraphAttributes& GA);
+void SubGraphPlan(Graph&, GraphAttributes&);
+void addRelations(Graph&, GraphAttributes&);
+
 
 const double NODE_SIZE = 20.0;
 const double PI = 3.141592653589793238463;
@@ -57,16 +60,19 @@ int main() {
 	GraphAttributes testAttributes(test, GraphAttributes::nodeGraphics | GraphAttributes::edgeGraphics | GraphAttributes::nodeLabel | GraphAttributes::nodeStyle | GraphAttributes::edgeType | GraphAttributes::edgeArrow | GraphAttributes::edgeStyle);
 
 	//CreateGraphTwo(test, testAttributes);
-	randomSimpleGraph(test, 20, 30);
+	randomSimpleGraph(test, 10, 20);
+
+	addRelations(test, testAttributes);	
+
 	SetGraphLayout(test, testAttributes);
 		
-	SubGraphPlan(test, testAttributes);
+	//SubGraphPlan(test, testAttributes);
 
 	PlanarRepresentation(test, testAttributes);
 
 	GetDegrees(test);
 
-	CriteriaTesting();
+	//CriteriaTesting();
 
 	return 0;
 }
@@ -107,15 +113,15 @@ void CriteriaTesting() {
 void SubGraphPlan(Graph& G, GraphAttributes& GA) {
 	PlanRep PR = PlanRep(G);
 	SubgraphPlanarizer SP;
-	int crossNum;
-	SP.call(PR, 0, crossNum, nullptr, nullptr, nullptr);
-	cout << "CROSSNUM: " << crossNum << endl;
+	//int crossNum;
+	//SP.call(PR, 0, crossNum, nullptr, nullptr, nullptr);
+	//cout << "CROSSNUM: " << crossNum << endl;
 
+	GridLayout gridLayout;
 	PlanarizationGridLayout pgl;
-
 	pgl.call(GA);
-	GraphIO::write(GA, "C:\\Users\\Bart\\Desktop\\Output5.svg", GraphIO::drawSVG);
 
+	GraphIO::write(GA, "C:\\Users\\Bart\\Desktop\\Output5.svg", GraphIO::drawSVG);
 }
 
 void GetDegrees(Graph&G) {
@@ -124,26 +130,59 @@ void GetDegrees(Graph&G) {
 	}
 }
 
+void addRelations(Graph& G, GraphAttributes& GA) {
+	List<edge> originalEdges;
+	G.allEdges(originalEdges);
+		
+	for (edge& e : originalEdges) {		
+		node s = e->source();
+		node t = e->target();
+
+		node R = G.newNode();
+
+		G.newEdge(s, R);
+		G.newEdge(R, t);
+
+		GA.shape(R) = Shape::Rhomb;
+
+		G.delEdge(e);
+	}
+}
+
 void PlanarRepresentation(Graph& G, GraphAttributes& GA) {
 	cout << "Edges before: " << G.edges.size() << endl;
 
 	List<edge> deletedEdges;
+	int arraySize = 0;
 
-	PlanarSubgraphBoyerMyrvold ps;
-	//MaximumPlanarSubgraph ps;
+	PlanarSubgraphBoyerMyrvold ps = PlanarSubgraphBoyerMyrvold(2, 1.0);
 	ps.call(G, deletedEdges);
 	
 	cout << "Deleted edges: " << endl;
 	for (edge e: deletedEdges) {
 		cout << "edge: " << e->source() << " --- " << e->target() << endl;
 		G.delEdge(e);
+		arraySize++;
 	}
+
+	Array<edge>& edgesToAdd = Array<edge>(arraySize);
+	int i = 0;
+	for (edge e : deletedEdges) {
+		edgesToAdd[i] = e;
+		i++;
+	}
+
 	cout << endl << endl;
 	cout << "Edges after: " << G.edges.size() << endl;
 
 	cout << endl << endl;
 	cout << endl << endl;
 	cout << "IS PLANAR? " << isPlanar(G) << endl;
+
+	VariableEmbeddingInserter vei;
+	PlanRep pr = PlanRep(G);
+	PlanRepLight& prl = PlanRepLight(pr);
+	vei.call(prl, edgesToAdd);
 
 	PlanarizationGridLayout pgl;
 
@@ -342,7 +381,8 @@ void SetGraphLayout(Graph& G, GraphAttributes& GA) {
 	for (node v : G.nodes) {
 		GA.height(v) = NODE_SIZE; // set the height to 20.0
 		GA.width(v) = NODE_SIZE; // set the width to 40.0
-		GA.shape(v) = ogdf::Shape::Rect;
+		//GA.shape(v) = Shape::Rect;
+		//GA.shape(v) = Shape::Rhomb;
 		
 		string s = to_string(v->index());
 		char const *pchar = s.c_str(); //use char const* as target type
