@@ -43,7 +43,7 @@ double NodeOrthogonalityCriterium(Graph&, GraphAttributes&);
 double EdgeOrthogonalityCriterium(Graph&, GraphAttributes&);
 void OrthogonalLayout(Graph&, GraphAttributes&);
 void PlanarRepresentation(Graph&, GraphAttributes&);
-void GetDegrees(Graph&);
+void GetDegrees(Graph&, GraphAttributes&);
 void CriteriaTesting();
 void SubGraphPlan(Graph&, GraphAttributes&);
 void addRelations(Graph&, GraphAttributes&);
@@ -70,7 +70,7 @@ int main() {
 
 	PlanarRepresentation(test, testAttributes);
 
-	GetDegrees(test);
+	GetDegrees(test, testAttributes);
 
 	//CriteriaTesting();
 
@@ -124,9 +124,11 @@ void SubGraphPlan(Graph& G, GraphAttributes& GA) {
 	GraphIO::write(GA, "C:\\Users\\Bart\\Desktop\\Output5.svg", GraphIO::drawSVG);
 }
 
-void GetDegrees(Graph&G) {
+void GetDegrees(Graph&G, GraphAttributes& GA) {
 	for (node n : G.nodes) {
-		cout << "Node " << n->index() << " degree: " << n->degree() << endl;
+		if (GA.shape(n) == Shape::Rect) {
+			cout << "Node " << n->index() << " degree: " << n->degree() << endl;
+		}
 	}
 }
 
@@ -165,24 +167,12 @@ void PlanarRepresentation(Graph& G, GraphAttributes& GA) {
 		arraySize++;
 	}
 
-	Array<edge>& edgesToAdd = Array<edge>(arraySize);
-	int i = 0;
-	for (edge e : deletedEdges) {
-		edgesToAdd[i] = e;
-		i++;
-	}
-
 	cout << endl << endl;
 	cout << "Edges after: " << G.edges.size() << endl;
 
 	cout << endl << endl;
 	cout << endl << endl;
 	cout << "IS PLANAR? " << isPlanar(G) << endl;
-
-	VariableEmbeddingInserter vei;
-	PlanRep pr = PlanRep(G);
-	PlanRepLight& prl = PlanRepLight(pr);
-	vei.call(prl, edgesToAdd);
 
 	PlanarizationGridLayout pgl;
 
@@ -381,12 +371,12 @@ void SetGraphLayout(Graph& G, GraphAttributes& GA) {
 	for (node v : G.nodes) {
 		GA.height(v) = NODE_SIZE; // set the height to 20.0
 		GA.width(v) = NODE_SIZE; // set the width to 40.0
-		//GA.shape(v) = Shape::Rect;
-		//GA.shape(v) = Shape::Rhomb;
 		
-		string s = to_string(v->index());
-		char const *pchar = s.c_str(); //use char const* as target type
-		GA.label(v) = pchar;
+		//if (GA.shape(v) == Shape::Rect) {
+			string s = to_string(v->index());
+			char const *pchar = s.c_str(); //use char const* as target type
+			GA.label(v) = pchar;
+		//}
 	}
 
 	for (edge e : G.edges) {// set default edge color and type
