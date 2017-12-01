@@ -2,6 +2,7 @@
 //
 
 #include <iostream>
+#include <iterator>
 #include "stdafx.h"
 
 #include <ogdf/basic/Graph.h>
@@ -28,6 +29,11 @@
 #include <ogdf/graphalg/Clusterer.h>
 #include <ogdf/orthogonal/EdgeRouter.h>
 #include <ogdf/planarity/VariableEmbeddingInserter.h>
+#include <ogdf/planarity/PlanarSubgraphFast.h>
+#include <ogdf/planarlayout/MixedModelLayout.h>
+#include <ogdf/planarlayout/MMCBDoubleGrid.h>
+#include <ogdf/planarlayout/MMCBLocalStretch.h>
+#include <ogdf/planarity/FixedEmbeddingInserter.h>
 
 using namespace ogdf;
 using namespace std;
@@ -47,9 +53,15 @@ void GetDegrees(Graph&, GraphAttributes&);
 void CriteriaTesting();
 void SubGraphPlan(Graph&, GraphAttributes&);
 void addRelations(Graph&, GraphAttributes&);
+void ERLayoutAlgorithm(Graph&, GraphAttributes&);
+void Planarize(Graph&, GraphAttributes&);
+void Embed(Graph&, GraphAttributes&);
+void Orthogonalize(Graph&, GraphAttributes&);
+int getBiconnectedComponents(Graph&);
 
-
-const double NODE_SIZE = 20.0;
+const double NODE_WIDTH = 80.0;
+const double NODE_HEIGHT = 40.0;
+const float EDGE_STROKEWIDTH = 4;
 const double PI = 3.141592653589793238463;
 
 // now hardcoded for test graph, need to be able to get this value from my own layout-algorithm
@@ -60,17 +72,17 @@ int main() {
 	GraphAttributes testAttributes(test, GraphAttributes::nodeGraphics | GraphAttributes::edgeGraphics | GraphAttributes::nodeLabel | GraphAttributes::nodeStyle | GraphAttributes::edgeType | GraphAttributes::edgeArrow | GraphAttributes::edgeStyle);
 
 	//CreateGraphTwo(test, testAttributes);
-	randomSimpleGraph(test, 10, 20);
+	randomSimpleGraph(test, 20, 30);
 
-	addRelations(test, testAttributes);	
+	cout << "Components: " << getBiconnectedComponents(test) << endl;
 
-	SetGraphLayout(test, testAttributes);
-		
-	//SubGraphPlan(test, testAttributes);
+	// addRelations(test, testAttributes);	
 
-	PlanarRepresentation(test, testAttributes);
+	//SetGraphLayout(test, testAttributes);
 
-	GetDegrees(test, testAttributes);
+	//ERLayoutAlgorithm(test, testAttributes);
+
+	//GetDegrees(test, testAttributes);
 
 	//CriteriaTesting();
 
@@ -110,18 +122,43 @@ void CriteriaTesting() {
 	GraphIO::write(graphAttributesCopy, "C:\\Users\\Bart\\Desktop\\Output2.svg", GraphIO::drawSVG);
 }
 
-void SubGraphPlan(Graph& G, GraphAttributes& GA) {
-	PlanRep PR = PlanRep(G);
-	SubgraphPlanarizer SP;
-	//int crossNum;
-	//SP.call(PR, 0, crossNum, nullptr, nullptr, nullptr);
-	//cout << "CROSSNUM: " << crossNum << endl;
+int getBiconnectedComponents(Graph& G) {
+	EdgeArray<int>& component = EdgeArray<int>(G);
+	int count = 0;
+	count = biconnectedComponents(G, component);
+	
+	for (int i : component) {
+		cout << "EUh? " << i << endl;
+	}
 
-	GridLayout gridLayout;
-	PlanarizationGridLayout pgl;
-	pgl.call(GA);
+	return count;
+}
 
-	GraphIO::write(GA, "C:\\Users\\Bart\\Desktop\\Output5.svg", GraphIO::drawSVG);
+void ERLayoutAlgorithm(Graph& G, GraphAttributes& GA) {
+	PlanarizationGridLayout pl;
+	SubgraphPlanarizer *crossMin = new SubgraphPlanarizer;
+
+	// Get a planar subgraph using Boyer Myrvold Algorithm
+	PlanarSubgraphBoyerMyrvold *ps = new PlanarSubgraphBoyerMyrvold;
+	VariableEmbeddingInserter *ves = new VariableEmbeddingInserter;
+
+	crossMin->setSubgraph(ps);
+	crossMin->setInserter(ves);
+
+	MixedModelLayout *ol = new MixedModelLayout;
+	MMCBLocalStretch *cb = new MMCBLocalStretch;
+	ol->separation(180.0);
+
+	ol->setCrossingsBeautifier(cb);
+
+	pl.setPlanarLayouter(ol);
+
+	pl.call(GA);
+
+	cout << "page ratio: " << pl.pageRatio() << endl;
+	cout << "number of crossings: " << pl.numberOfCrossings() << endl;
+
+	GraphIO::write(GA, "C:\\Users\\Bart\\Desktop\\Output6.svg", GraphIO::drawSVG);
 }
 
 void GetDegrees(Graph&G, GraphAttributes& GA) {
@@ -313,8 +350,8 @@ double EdgeOrthogonalityCriterium(Graph& G, GraphAttributes& GA) {
 double NodeOrthogonalityCriterium(Graph& G, GraphAttributes& GA) {
 	double width = 0, height = 0;
 	for (node n : G.nodes) {
-		double nodeWidth = GA.x(n) / (2 * NODE_SIZE);
-		double nodeHeight = GA.y(n) / (2 * NODE_SIZE);
+		double nodeWidth = GA.x(n) / (2 * NODE_WIDTH);
+		double nodeHeight = GA.y(n) / (2 * NODE_HEIGHT);
 
 		if (nodeWidth > width)
 			width = nodeWidth;
@@ -339,20 +376,20 @@ void CreateGraph(Graph& G, GraphAttributes& GA) {
 	node four = G.newNode();
 
 	// set node positions
-	GA.x(zero) = 4 * NODE_SIZE;
+	GA.x(zero) = 4 * NODE_WIDTH;
 	GA.y(zero) = 0;
 
-	GA.x(one) = 4 * NODE_SIZE;
-	GA.y(one) = 4 * NODE_SIZE;
+	GA.x(one) = 4 * NODE_WIDTH;
+	GA.y(one) = 4 * NODE_HEIGHT;
 
 	GA.x(two) = 0;
-	GA.y(two) = 2 * NODE_SIZE;
+	GA.y(two) = 2 * NODE_HEIGHT;
 
-	GA.x(three) = 4 * NODE_SIZE;
-	GA.y(three) = 8 * NODE_SIZE;
+	GA.x(three) = 4 * NODE_WIDTH;
+	GA.y(three) = 8 * NODE_HEIGHT;
 
 	GA.x(four) = 0;
-	GA.y(four) = 8 * NODE_SIZE;
+	GA.y(four) = 8 * NODE_HEIGHT;
 
 	// add edges
 	edge zero_one = G.newEdge(zero, one);
@@ -363,25 +400,26 @@ void CreateGraph(Graph& G, GraphAttributes& GA) {
 	edge two_three = G.newEdge(two, three);
 
 	DPolyline &p = GA.bends(zero_three);
-	p.pushBack(DPoint(6 * NODE_SIZE, 2 * NODE_SIZE));
-	p.pushBack(DPoint(6 * NODE_SIZE, 6 * NODE_SIZE));
+	p.pushBack(DPoint(6 * NODE_WIDTH, 2 * NODE_HEIGHT));
+	p.pushBack(DPoint(6 * NODE_WIDTH, 6 * NODE_HEIGHT));
 }
 
 void SetGraphLayout(Graph& G, GraphAttributes& GA) {
 	for (node v : G.nodes) {
-		GA.height(v) = NODE_SIZE; // set the height to 20.0
-		GA.width(v) = NODE_SIZE; // set the width to 40.0
-		
+		GA.height(v) = NODE_HEIGHT; // set the height to 20.0
+		GA.width(v) = NODE_WIDTH; // set the width to 40.0
+
 		//if (GA.shape(v) == Shape::Rect) {
-			string s = to_string(v->index());
-			char const *pchar = s.c_str(); //use char const* as target type
-			GA.label(v) = pchar;
+		string s = to_string(v->index());
+		char const *pchar = s.c_str(); //use char const* as target type
+		GA.label(v) = pchar;
 		//}
 	}
 
 	for (edge e : G.edges) {// set default edge color and type
 		GA.arrowType(e) = ogdf::EdgeArrow::None;
 		GA.strokeColor(e) = Color("#bababa");
+		GA.strokeWidth(e) = EDGE_STROKEWIDTH;
 	}
 }
 
