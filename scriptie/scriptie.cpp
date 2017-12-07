@@ -71,13 +71,8 @@ int main() {
 	Graph test;
 	GraphAttributes testAttributes(test, GraphAttributes::nodeGraphics | GraphAttributes::edgeGraphics | GraphAttributes::nodeLabel | GraphAttributes::nodeStyle | GraphAttributes::edgeType | GraphAttributes::edgeArrow | GraphAttributes::edgeStyle | GraphAttributes::edgeLabel);
 
-<<<<<<< HEAD
-	//CreateGraphTwo(test, testAttributes);
-	randomSimpleGraph(test, 15, 20);
-=======
 	CreateGraphTwo(test, testAttributes);
 	//randomSimpleGraph(test, 20, 30);
->>>>>>> 8e1ca97722fbe5ea2070dd652ad66910f1a4eaf0
 
 	SetGraphLayout(test, testAttributes);
 
@@ -85,11 +80,7 @@ int main() {
 
 	// addRelations(test, testAttributes);	
 
-<<<<<<< HEAD
-	
-=======
 	SetGraphLayout(test, testAttributes);
->>>>>>> 8e1ca97722fbe5ea2070dd652ad66910f1a4eaf0
 
 	ERLayoutAlgorithm(test, testAttributes);
 
@@ -136,9 +127,8 @@ void CriteriaTesting() {
 int getBiconnectedComponents(Graph& G) {
 	EdgeArray<int>& component = EdgeArray<int>(G);
 	int count = 0;
-	count = biconnectedComponents(G, component);
-	
-<<<<<<< HEAD
+	count = biconnectedComponents(G, component);	
+
 	int edgeIndex = 0;
 	for (int i = 0; i < count; i++) {
 		for (int c : component) {
@@ -148,10 +138,6 @@ int getBiconnectedComponents(Graph& G) {
 			edgeIndex++;
 		}
 		edgeIndex = 0;
-=======
-	for (int i : component) {
-		cout << "Euh?" << i << endl;
->>>>>>> 8e1ca97722fbe5ea2070dd652ad66910f1a4eaf0
 	}
 	
 	return count;
@@ -432,17 +418,11 @@ void SetGraphLayout(Graph& G, GraphAttributes& GA) {
 		GA.height(v) = NODE_HEIGHT; // set the height to 20.0
 		GA.width(v) = NODE_WIDTH; // set the width to 40.0
 
-<<<<<<< HEAD
-		string s = to_string(v->index());
-		char const *pchar = s.c_str(); //use char const* as target type
-		GA.label(v) = pchar;
-=======
 		//if (GA.shape(v) == Shape::Rect) {
 		//string s = to_string(v->index());
 		//char const *pchar = s.c_str(); //use char const* as target type
 		//GA.label(v) = pchar;
 		//}
->>>>>>> 8e1ca97722fbe5ea2070dd652ad66910f1a4eaf0
 	}
 
 	for (edge e : G.edges) {// set default edge color and type
