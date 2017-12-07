@@ -69,18 +69,20 @@ const double CROSSINGS = 2;
 
 int main() {
 	Graph test;
-	GraphAttributes testAttributes(test, GraphAttributes::nodeGraphics | GraphAttributes::edgeGraphics | GraphAttributes::nodeLabel | GraphAttributes::nodeStyle | GraphAttributes::edgeType | GraphAttributes::edgeArrow | GraphAttributes::edgeStyle);
+	GraphAttributes testAttributes(test, GraphAttributes::nodeGraphics | GraphAttributes::edgeGraphics | GraphAttributes::nodeLabel | GraphAttributes::nodeStyle | GraphAttributes::edgeType | GraphAttributes::edgeArrow | GraphAttributes::edgeStyle | GraphAttributes::edgeLabel);
 
 	//CreateGraphTwo(test, testAttributes);
-	randomSimpleGraph(test, 20, 30);
+	randomSimpleGraph(test, 15, 20);
 
-	cout << "Components: " << getBiconnectedComponents(test) << endl;
+	SetGraphLayout(test, testAttributes);
+
+	getBiconnectedComponents(test);
 
 	// addRelations(test, testAttributes);	
 
-	//SetGraphLayout(test, testAttributes);
+	
 
-	//ERLayoutAlgorithm(test, testAttributes);
+	ERLayoutAlgorithm(test, testAttributes);
 
 	//GetDegrees(test, testAttributes);
 
@@ -127,10 +129,17 @@ int getBiconnectedComponents(Graph& G) {
 	int count = 0;
 	count = biconnectedComponents(G, component);
 	
-	for (int i : component) {
-		cout << "EUh? " << i << endl;
+	int edgeIndex = 0;
+	for (int i = 0; i < count; i++) {
+		for (int c : component) {
+			if (c == i) {
+				cout << "Component: " << i << "  --  " << edgeIndex << endl;
+			}
+			edgeIndex++;
+		}
+		edgeIndex = 0;
 	}
-
+	
 	return count;
 }
 
@@ -409,17 +418,19 @@ void SetGraphLayout(Graph& G, GraphAttributes& GA) {
 		GA.height(v) = NODE_HEIGHT; // set the height to 20.0
 		GA.width(v) = NODE_WIDTH; // set the width to 40.0
 
-		//if (GA.shape(v) == Shape::Rect) {
 		string s = to_string(v->index());
 		char const *pchar = s.c_str(); //use char const* as target type
 		GA.label(v) = pchar;
-		//}
 	}
 
 	for (edge e : G.edges) {// set default edge color and type
 		GA.arrowType(e) = ogdf::EdgeArrow::None;
 		GA.strokeColor(e) = Color("#bababa");
-		GA.strokeWidth(e) = EDGE_STROKEWIDTH;
+		GA.strokeWidth(e) = 1;
+
+		string s2 = to_string(e->index());
+		char const *pchar2 = s2.c_str(); //use char const* as target type
+		GA.label(e) = pchar2;
 	}
 }
 
