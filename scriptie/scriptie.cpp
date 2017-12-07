@@ -59,7 +59,7 @@ void Embed(Graph&, GraphAttributes&);
 void Orthogonalize(Graph&, GraphAttributes&);
 int getBiconnectedComponents(Graph&);
 
-const double NODE_WIDTH = 80.0;
+const double NODE_WIDTH = 100.0;
 const double NODE_HEIGHT = 40.0;
 const float EDGE_STROKEWIDTH = 4;
 const double PI = 3.141592653589793238463;
@@ -71,16 +71,16 @@ int main() {
 	Graph test;
 	GraphAttributes testAttributes(test, GraphAttributes::nodeGraphics | GraphAttributes::edgeGraphics | GraphAttributes::nodeLabel | GraphAttributes::nodeStyle | GraphAttributes::edgeType | GraphAttributes::edgeArrow | GraphAttributes::edgeStyle);
 
-	//CreateGraphTwo(test, testAttributes);
-	randomSimpleGraph(test, 20, 30);
+	CreateGraphTwo(test, testAttributes);
+	//randomSimpleGraph(test, 20, 30);
 
 	cout << "Components: " << getBiconnectedComponents(test) << endl;
 
 	// addRelations(test, testAttributes);	
 
-	//SetGraphLayout(test, testAttributes);
+	SetGraphLayout(test, testAttributes);
 
-	//ERLayoutAlgorithm(test, testAttributes);
+	ERLayoutAlgorithm(test, testAttributes);
 
 	//GetDegrees(test, testAttributes);
 
@@ -128,7 +128,7 @@ int getBiconnectedComponents(Graph& G) {
 	count = biconnectedComponents(G, component);
 	
 	for (int i : component) {
-		cout << "EUh? " << i << endl;
+		cout << "Euh?" << i << endl;
 	}
 
 	return count;
@@ -410,9 +410,9 @@ void SetGraphLayout(Graph& G, GraphAttributes& GA) {
 		GA.width(v) = NODE_WIDTH; // set the width to 40.0
 
 		//if (GA.shape(v) == Shape::Rect) {
-		string s = to_string(v->index());
-		char const *pchar = s.c_str(); //use char const* as target type
-		GA.label(v) = pchar;
+		//string s = to_string(v->index());
+		//char const *pchar = s.c_str(); //use char const* as target type
+		//GA.label(v) = pchar;
 		//}
 	}
 
@@ -426,39 +426,57 @@ void SetGraphLayout(Graph& G, GraphAttributes& GA) {
 // create testGraph to test criteria imlementations
 void CreateGraphTwo(Graph& graph, GraphAttributes& GA) {
 	// add nodes
-	node A = graph.newNode();	
-	node B = graph.newNode();	
-	node C = graph.newNode();	
-	node D = graph.newNode();	
-	node E = graph.newNode();	
-	node F = graph.newNode();	
-	node G = graph.newNode();	
-	node S = graph.newNode();
-	node T = graph.newNode();
+	node Adresses = graph.newNode();	
+	node Schools = graph.newNode();	
+	node Subjects = graph.newNode();	
+	node Parent_Adresses = graph.newNode();	
+	node Student_Adresses = graph.newNode();	
+	node Parents = graph.newNode();	
+	node Student_Parents = graph.newNode();	
+	node Teachers = graph.newNode();
+	node Classes = graph.newNode();
+	node Family_Members = graph.newNode();
+	node Students = graph.newNode();
+	node Student_Classes = graph.newNode();
+	node Families = graph.newNode();
+	node Homework = graph.newNode();
+	node Reports = graph.newNode();
 
-	GA.label(A) = "A";
-	GA.label(B) = "B";
-	GA.label(C) = "C";
-	GA.label(D) = "D";
-	GA.label(E) = "E";
-	GA.label(F) = "F";
-	GA.label(G) = "G";
-	GA.label(S) = "S";
-	GA.label(T) = "T";
+	GA.label(Adresses) = "Adresses";
+	GA.label(Schools) = "Schools";
+	GA.label(Subjects) = "Subjects";
+	GA.label(Parent_Adresses) = "Parent_Adresses";
+	GA.label(Student_Adresses) = "Student_Adresses";
+	GA.label(Parents) = "Parents";
+	GA.label(Student_Parents) = "Student_Parents";
+	GA.label(Teachers) = "Teachers";
+	GA.label(Classes) = "Classes";
+	GA.label(Family_Members) = "Family_Members";
+	GA.label(Students) = "Students";
+	GA.label(Student_Classes) = "Student_Classes";
+	GA.label(Families) = "Families";
+	GA.label(Homework) = "Homework";
+	GA.label(Reports) = "Reports";
 
 	// add edgraphes
-	edge AB = graph.newEdge(A, B);
-	edge AC = graph.newEdge(A, C);
-	edge AG = graph.newEdge(A, G);
-	edge BC = graph.newEdge(B, C);
-	edge BG = graph.newEdge(B, G);
-	edge CS = graph.newEdge(C, S);
-	edge CT = graph.newEdge(C, T);
-	edge DE = graph.newEdge(D, E);
-	edge DT = graph.newEdge(D, T);
-	edge ET = graph.newEdge(E, T);
-	edge FS = graph.newEdge(F, S);
-	edge GS = graph.newEdge(G, S);
+	edge SchoolsToAdresses = graph.newEdge(Schools, Adresses);
+	edge Parent_AdressesToAdresses = graph.newEdge(Parent_Adresses, Adresses);
+	edge Parent_AdressesToParents = graph.newEdge(Parent_Adresses, Parents);
+	edge Student_AdressesToAdresses = graph.newEdge(Student_Adresses, Adresses);
+	edge Student_AdressesToStudents = graph.newEdge(Student_Adresses, Students);
+	edge Student_ParentsToParents = graph.newEdge(Student_Parents, Parents);
+	edge Student_ParentsToStudents = graph.newEdge(Student_Parents, Students);
+	edge TeachersToSchools = graph.newEdge(Teachers, Schools);
+	edge ClassesToSubjects = graph.newEdge(Classes, Subjects);
+	edge ClassesToTeachers = graph.newEdge(Classes, Teachers);
+	edge Family_MembersToParents = graph.newEdge(Family_Members, Parents);
+	edge Family_MembersToFamilies = graph.newEdge(Family_Members, Families);
+	edge Family_MembersToStudents = graph.newEdge(Family_Members, Students);
+	edge Student_ClassesToStudents = graph.newEdge(Student_Classes, Students);
+	edge Student_ClassesToClasses = graph.newEdge(Student_Classes, Classes);
+	edge FamiliesToParents = graph.newEdge(Families, Parents);
+	edge HomeworkToStudents = graph.newEdge(Homework, Students);
+	edge ReportsToStudents = graph.newEdge(Reports, Students);	
 
 	for (edge e : graph.edges) {// set default edge color and type
 		GA.arrowType(e) = ogdf::EdgeArrow::None;
