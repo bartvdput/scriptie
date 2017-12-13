@@ -1,0 +1,435 @@
+[{
+    "name": "ROLES",
+    "description": "ROLES",
+    "members": [{
+        "name": "name",
+        "group": null,
+        "label": null,
+        "relation": "NONE",
+        "type": {
+            "kind": "basic",
+            "name": "text"
+        }
+    }, {
+        "name": "USERS",
+        "group": null,
+        "label": null,
+        "relation": "BI_MANY_TO_MANY",
+        "type": {
+            "kind": "collection",
+            "name": "USERS",
+            "opposite": "ROLES"
+        }
+    }]
+}, {
+    "name": "PRODUCTS",
+    "description": "PRODUCTS",
+    "members": [{
+        "name": "naam",
+        "group": null,
+        "label": null,
+        "relation": "NONE",
+        "type": {
+            "kind": "basic",
+            "name": "text"
+        }
+    }, {
+        "name": "prijs",
+        "group": null,
+        "label": null,
+        "relation": "NONE",
+        "type": {
+            "kind": "basic",
+            "name": "integer"
+        }
+    }, {
+        "name": "picture",
+        "group": null,
+        "label": null,
+        "relation": "NONE",
+        "type": {
+            "kind": "basic",
+            "name": "binary"
+        }
+    }, {
+        "name": "titel",
+        "group": null,
+        "label": null,
+        "relation": "NONE",
+        "type": {
+            "kind": "basic",
+            "name": "any"
+        }
+    }]
+}, {
+    "name": "MESSAGES",
+    "description": "MESSAGES",
+    "members": [{
+        "name": "user",
+        "group": null,
+        "label": null,
+        "relation": "UNI_TO_ONE",
+        "type": {
+            "kind": "entity",
+            "name": "USERS",
+            "opposite": null
+        }
+    }, {
+        "name": "title",
+        "group": null,
+        "label": null,
+        "relation": "NONE",
+        "type": {
+            "kind": "basic",
+            "name": "text"
+        }
+    }, {
+        "name": "body",
+        "group": null,
+        "label": null,
+        "relation": "NONE",
+        "type": {
+            "kind": "basic",
+            "name": "text"
+        }
+    }, {
+        "name": "link",
+        "group": null,
+        "label": null,
+        "relation": "NONE",
+        "type": {
+            "kind": "basic",
+            "name": "text"
+        }
+    }]
+}, {
+    "name": "REPORTS",
+    "description": "REPORTS",
+    "members": [{
+        "name": "title",
+        "group": null,
+        "label": null,
+        "relation": "NONE",
+        "type": {
+            "kind": "basic",
+            "name": "text"
+        }
+    }, {
+        "name": "body",
+        "group": null,
+        "label": null,
+        "relation": "NONE",
+        "type": {
+            "kind": "basic",
+            "name": "any"
+        }
+    }, {
+        "name": "rewritable",
+        "group": null,
+        "label": null,
+        "relation": "NONE",
+        "type": {
+            "kind": "basic",
+            "name": "boolean"
+        }
+    }]
+}, {
+    "name": "MAILS",
+    "description": "MAILS",
+    "members": [{
+        "name": "from",
+        "group": null,
+        "label": null,
+        "relation": "NONE",
+        "type": {
+            "kind": "basic",
+            "name": "text"
+        }
+    }, {
+        "name": "to",
+        "group": null,
+        "label": null,
+        "relation": "NONE",
+        "type": {
+            "kind": "basic",
+            "name": "text"
+        }
+    }, {
+        "name": "cc",
+        "group": null,
+        "label": null,
+        "relation": "NONE",
+        "type": {
+            "kind": "basic",
+            "name": "text"
+        }
+    }, {
+        "name": "bcc",
+        "group": null,
+        "label": null,
+        "relation": "NONE",
+        "type": {
+            "kind": "basic",
+            "name": "text"
+        }
+    }, {
+        "name": "subject",
+        "group": null,
+        "label": null,
+        "relation": "NONE",
+        "type": {
+            "kind": "basic",
+            "name": "text"
+        }
+    }, {
+        "name": "body",
+        "group": null,
+        "label": null,
+        "relation": "NONE",
+        "type": {
+            "kind": "basic",
+            "name": "text"
+        }
+    }, {
+        "name": "attachments",
+        "group": null,
+        "label": null,
+        "relation": "NONE",
+        "type": {
+            "kind": "basic",
+            "name": "any"
+        }
+    }]
+}, {
+    "name": "ORDERS",
+    "description": "ORDERS",
+    "members": [{
+        "name": "datum",
+        "group": null,
+        "label": null,
+        "relation": "NONE",
+        "type": {
+            "kind": "basic",
+            "name": "date"
+        }
+    }, {
+        "name": "KLANT",
+        "group": null,
+        "label": null,
+        "relation": "UNI_TO_ONE",
+        "type": {
+            "kind": "entity",
+            "name": "USERS",
+            "opposite": null
+        }
+    }, {
+        "name": "LINES",
+        "group": null,
+        "label": null,
+        "relation": "BI_ONE_TO_MANY",
+        "type": {
+            "kind": "collection",
+            "name": "ORDER_LINES",
+            "opposite": "ORDER"
+        }
+    }, {
+        "name": "akkoord",
+        "group": null,
+        "label": null,
+        "relation": "NONE",
+        "type": {
+            "kind": "basic",
+            "name": "boolean"
+        }
+    }, {
+        "name": "totaal",
+        "group": null,
+        "label": null,
+        "relation": "NONE",
+        "type": {
+            "kind": "basic",
+            "name": "integer"
+        }
+    }]
+}, {
+    "name": "ORDER_LINES",
+    "description": "ORDER_LINES",
+    "members": [{
+        "name": "PRODUCT",
+        "group": null,
+        "label": null,
+        "relation": "UNI_TO_ONE",
+        "type": {
+            "kind": "entity",
+            "name": "PRODUCTS",
+            "opposite": null
+        }
+    }, {
+        "name": "aantal",
+        "group": null,
+        "label": null,
+        "relation": "NONE",
+        "type": {
+            "kind": "basic",
+            "name": "integer"
+        }
+    }, {
+        "name": "totaal",
+        "group": null,
+        "label": null,
+        "relation": "NONE",
+        "type": {
+            "kind": "basic",
+            "name": "integer"
+        }
+    }, {
+        "name": "info",
+        "group": null,
+        "label": null,
+        "relation": "NONE",
+        "type": {
+            "kind": "basic",
+            "name": "text"
+        }
+    }, {
+        "name": "ORDER",
+        "group": null,
+        "label": null,
+        "relation": "BI_MANY_TO_ONE",
+        "type": {
+            "kind": "entity",
+            "name": "ORDERS",
+            "opposite": "REGELS"
+        }
+    }]
+}, {
+    "name": "PARAMETERS",
+    "description": "PARAMETERS",
+    "members": [{
+        "name": "name",
+        "group": null,
+        "label": null,
+        "relation": "NONE",
+        "type": {
+            "kind": "basic",
+            "name": "text"
+        }
+    }, {
+        "name": "value",
+        "group": null,
+        "label": null,
+        "relation": "NONE",
+        "type": {
+            "kind": "basic",
+            "name": "text"
+        }
+    }]
+}, {
+    "name": "USERS",
+    "description": "USERS",
+    "members": [{
+        "name": "userName",
+        "group": null,
+        "label": null,
+        "relation": "NONE",
+        "type": {
+            "kind": "basic",
+            "name": "text"
+        }
+    }, {
+        "name": "firstName",
+        "group": null,
+        "label": null,
+        "relation": "NONE",
+        "type": {
+            "kind": "basic",
+            "name": "text"
+        }
+    }, {
+        "name": "lastName",
+        "group": null,
+        "label": null,
+        "relation": "NONE",
+        "type": {
+            "kind": "basic",
+            "name": "text"
+        }
+    }, {
+        "name": "fullName",
+        "group": null,
+        "label": null,
+        "relation": "NONE",
+        "type": {
+            "kind": "basic",
+            "name": "text"
+        }
+    }, {
+        "name": "email",
+        "group": null,
+        "label": null,
+        "relation": "NONE",
+        "type": {
+            "kind": "basic",
+            "name": "text"
+        }
+    }, {
+        "name": "locked",
+        "group": null,
+        "label": null,
+        "relation": "NONE",
+        "type": {
+            "kind": "basic",
+            "name": "boolean"
+        }
+    }, {
+        "name": "ROLES",
+        "group": null,
+        "label": null,
+        "relation": "BI_MANY_TO_MANY",
+        "type": {
+            "kind": "collection",
+            "name": "ROLES",
+            "opposite": "USERS"
+        }
+    }]
+}, {
+    "name": "DOCUMENTS",
+    "description": "DOCUMENTS",
+    "members": [{
+        "name": "name",
+        "group": null,
+        "label": null,
+        "relation": "NONE",
+        "type": {
+            "kind": "basic",
+            "name": "text"
+        }
+    }, {
+        "name": "type",
+        "group": null,
+        "label": null,
+        "relation": "NONE",
+        "type": {
+            "kind": "basic",
+            "name": "text"
+        }
+    }, {
+        "name": "template",
+        "group": null,
+        "label": null,
+        "relation": "NONE",
+        "type": {
+            "kind": "basic",
+            "name": "text"
+        }
+    }, {
+        "name": "parameters",
+        "group": null,
+        "label": null,
+        "relation": "NONE",
+        "type": {
+            "kind": "basic",
+            "name": "any"
+        }
+    }]
+}]

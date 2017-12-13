@@ -2,8 +2,11 @@
 //
 
 #include <iostream>
+#include <fstream>
+#include <utility>
 #include <iterator>
 #include "stdafx.h"
+#include "json.hpp"
 
 #include <ogdf/basic/Graph.h>
 #include <ogdf/basic/GraphCopy.h>
@@ -37,6 +40,7 @@
 
 using namespace ogdf;
 using namespace std;
+using json = nlohmann::json;
 
 void CreateGraph(Graph&, GraphAttributes&);
 void CreateGraphTwo(Graph&, GraphAttributes&);
@@ -58,6 +62,7 @@ void Planarize(Graph&, GraphAttributes&);
 void Embed(Graph&, GraphAttributes&);
 void Orthogonalize(Graph&, GraphAttributes&);
 int getBiconnectedComponents(Graph&);
+void createGraphFromJson(Graph&, GraphAttributes&, string);
 
 const double NODE_WIDTH = 100.0;
 const double NODE_HEIGHT = 40.0;
@@ -71,16 +76,18 @@ int main() {
 	Graph test;
 	GraphAttributes testAttributes(test, GraphAttributes::nodeGraphics | GraphAttributes::edgeGraphics | GraphAttributes::nodeLabel | GraphAttributes::nodeStyle | GraphAttributes::edgeType | GraphAttributes::edgeArrow | GraphAttributes::edgeStyle | GraphAttributes::edgeLabel);
 
-	CreateGraphTwo(test, testAttributes);
+
+	createGraphFromJson(test, testAttributes, "D:\\Dropbox\\Afstuderen\\Scriptie\\JSON\\entities.json");
+	//CreateGraphTwo(test, testAttributes);
 	//randomSimpleGraph(test, 20, 30);
 
 	SetGraphLayout(test, testAttributes);
 
-	getBiconnectedComponents(test);
+	//getBiconnectedComponents(test);
 
 	// addRelations(test, testAttributes);	
 
-	SetGraphLayout(test, testAttributes);
+	//SetGraphLayout(test, testAttributes);
 
 	ERLayoutAlgorithm(test, testAttributes);
 
@@ -88,7 +95,83 @@ int main() {
 
 	//CriteriaTesting();
 
+	
+
 	return 0;
+}
+
+void createGraphFromJson(Graph& G, GraphAttributes& GA, string file) {
+	// Read JSON file
+	ifstream i(file);
+	json js;
+	i >> js;
+
+	//vector<node> nodes = vector<node>();
+	map<string, int> nodes;
+	map<string, node> nodes2;
+	int count = 0;
+
+	for (int i = 0; i < js.size(); i++) {
+		string name = js[i]["name"];
+		// Create nodes
+		node n = G.newNode();
+		GA.label(n) = name;
+		nodes.insert(pair<string, int>(name, count));
+		nodes2.insert(pair<string, node>(name, n));
+	}	
+
+	map<string, int>::iterator map_it;
+	map<string, node>::iterator map_it2;
+
+	for (map_it2 = nodes2.begin(); map_it2 != nodes2.end(); ++map_it2){
+		cout << "NODE: " << map_it2->first << endl;
+	}
+
+	ogdf::Graph::node_iterator node_it;
+
+	for (int i = 0; i < js.size(); i++) {
+		string source = js[i]["name"];
+		for (int j = 0; j < js[i]["members"].size(); j++) {
+			string rel_type = js[i]["members"][j]["relation"];
+			string target = js[i]["members"][j]["type"]["name"];
+
+			if (rel_type != "NONE") {				
+				//cout << "Relation: " << js[i]["members"][j]["relation"] << endl << endl;
+				cout << "Rel: " << source << " -- " << target << endl;	
+
+				// find source node
+				map_it2 = nodes2.find(source);
+				node s = map_it2->second;
+				cout << "Label: " << GA.label(s) << endl;
+
+				// find target node
+				map_it2 = nodes2.find(target);
+				node t = map_it2->second;
+				cout << "Label: " << GA.label(t) << endl;
+
+				G.newEdge(s, t);
+				cout << "edges: " << G.edges.size() << endl;
+			}
+		}
+	}
+
+	for (map_it2 = nodes2.begin(); map_it2 != nodes2.end(); map_it2++) {
+		node n = map_it2->second;
+		if (n->degree() == 0) {
+			G.delNode(n);
+		}
+	}
+
+	for (node n : G.nodes) {
+		if (n->degree() == 0) {
+			cout << "Node: " << GA.label(n) << " has degree " << n->degree() << endl;
+			G.delNode(n);
+		}		
+	}
+
+	for (node n : G.nodes) {
+		cout << "FINAL NODES: " << GA.label(n) << endl;
+	}
 }
 
 void CriteriaTesting() {
@@ -492,7 +575,8 @@ void CreateGraphTwo(Graph& graph, GraphAttributes& GA) {
 	edge ReportsToStudents = graph.newEdge(Reports, Students);	
 
 	for (edge e : graph.edges) {// set default edge color and type
-		GA.arrowType(e) = ogdf::EdgeArrow::None;
+		GA.arrowType(e) = ogdf::EdgeArrow::Last;
+		GA.strokeType(e) = ogdf::StrokeType::Solid;
 		GA.strokeColor(e) = Color("#bababa");
 	}
 }
