@@ -75,28 +75,17 @@ const double CROSSINGS = 2;
 int main() {
 	Graph test;
 	GraphAttributes testAttributes(test, GraphAttributes::nodeGraphics | GraphAttributes::edgeGraphics | GraphAttributes::nodeLabel | GraphAttributes::nodeStyle | GraphAttributes::edgeType | GraphAttributes::edgeArrow | GraphAttributes::edgeStyle | GraphAttributes::edgeLabel);
-
-
-	createGraphFromJson(test, testAttributes, "D:\\Dropbox\\Afstuderen\\Scriptie\\JSON\\entities.json");
+	string file = "entities.json";	
+	createGraphFromJson(test, testAttributes, file);
+	
 	//CreateGraphTwo(test, testAttributes);
 	//randomSimpleGraph(test, 20, 30);
-
-	SetGraphLayout(test, testAttributes);
-
-	//getBiconnectedComponents(test);
-
-	// addRelations(test, testAttributes);	
 
 	//SetGraphLayout(test, testAttributes);
 
 	ERLayoutAlgorithm(test, testAttributes);
 
-	//GetDegrees(test, testAttributes);
-
 	//CriteriaTesting();
-
-	
-
 	return 0;
 }
 
@@ -106,71 +95,52 @@ void createGraphFromJson(Graph& G, GraphAttributes& GA, string file) {
 	json js;
 	i >> js;
 
-	//vector<node> nodes = vector<node>();
-	map<string, int> nodes;
-	map<string, node> nodes2;
+	map<string, node> nodes;
 	int count = 0;
 
-	for (int i = 0; i < js.size(); i++) {
+	for (size_t i = 0; i < js.size(); i++) {
 		string name = js[i]["name"];
 		// Create nodes
 		node n = G.newNode();
 		GA.label(n) = name;
-		nodes.insert(pair<string, int>(name, count));
-		nodes2.insert(pair<string, node>(name, n));
+		nodes.insert(pair<string, node>(name, n));
 	}	
 
-	map<string, int>::iterator map_it;
-	map<string, node>::iterator map_it2;
+	map<string, node>::iterator map_it;
 
-	for (map_it2 = nodes2.begin(); map_it2 != nodes2.end(); ++map_it2){
-		cout << "NODE: " << map_it2->first << endl;
-	}
-
-	ogdf::Graph::node_iterator node_it;
-
-	for (int i = 0; i < js.size(); i++) {
+	for (size_t i = 0; i < js.size(); i++) {
 		string source = js[i]["name"];
-		for (int j = 0; j < js[i]["members"].size(); j++) {
+		for (size_t j = 0; j < js[i]["members"].size(); j++) {
 			string rel_type = js[i]["members"][j]["relation"];
 			string target = js[i]["members"][j]["type"]["name"];
 
 			if (rel_type != "NONE") {				
-				//cout << "Relation: " << js[i]["members"][j]["relation"] << endl << endl;
-				cout << "Rel: " << source << " -- " << target << endl;	
-
 				// find source node
-				map_it2 = nodes2.find(source);
-				node s = map_it2->second;
-				cout << "Label: " << GA.label(s) << endl;
+				map_it = nodes.find(source);
+				node s = map_it->second;
 
 				// find target node
-				map_it2 = nodes2.find(target);
-				node t = map_it2->second;
-				cout << "Label: " << GA.label(t) << endl;
+				map_it = nodes.find(target);
+				node t = map_it->second;
 
 				G.newEdge(s, t);
-				cout << "edges: " << G.edges.size() << endl;
 			}
 		}
 	}
 
-	for (map_it2 = nodes2.begin(); map_it2 != nodes2.end(); map_it2++) {
-		node n = map_it2->second;
+	for (map_it = nodes.begin(); map_it != nodes.end(); map_it++) {
+		node n = map_it->second;
 		if (n->degree() == 0) {
 			G.delNode(n);
 		}
 	}
 
 	for (node n : G.nodes) {
-		if (n->degree() == 0) {
-			cout << "Node: " << GA.label(n) << " has degree " << n->degree() << endl;
-			G.delNode(n);
-		}		
+		cout << "FINAL NODES: " << GA.label(n) << endl;
 	}
 
-	for (node n : G.nodes) {
-		cout << "FINAL NODES: " << GA.label(n) << endl;
+	for (edge e : G.edges) {
+		cout << "FINAL EDGES: " << GA.label(e->source()) << " -- " << GA.label(e->target()) << endl;
 	}
 }
 
@@ -247,7 +217,6 @@ void ERLayoutAlgorithm(Graph& G, GraphAttributes& GA) {
 
 	pl.call(GA);
 
-	cout << "page ratio: " << pl.pageRatio() << endl;
 	cout << "number of crossings: " << pl.numberOfCrossings() << endl;
 
 	GraphIO::write(GA, "C:\\Users\\Bart\\Desktop\\Output6.svg", GraphIO::drawSVG);
