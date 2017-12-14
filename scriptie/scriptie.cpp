@@ -37,6 +37,12 @@
 #include <ogdf/planarlayout/MMCBDoubleGrid.h>
 #include <ogdf/planarlayout/MMCBLocalStretch.h>
 #include <ogdf/planarity/FixedEmbeddingInserter.h>
+#include <ogdf/energybased/FMMMLayout.h>
+#include <ogdf/energybased/SpringEmbedderGridVariant.h>
+#include <ogdf/planarity/PlanarSubgraphCactus.h>
+#include <ogdf/planarlayout/SchnyderLayout.h>
+#include <ogdf/planarlayout/PlanarDrawLayout.h>
+#include <ogdf/planarlayout/PlanarStraightLayout.h>
 
 using namespace ogdf;
 using namespace std;
@@ -63,9 +69,10 @@ void Embed(Graph&, GraphAttributes&);
 void Orthogonalize(Graph&, GraphAttributes&);
 int getBiconnectedComponents(Graph&);
 void createGraphFromJson(Graph&, GraphAttributes&, string);
+void CreateGraphThree(Graph&, GraphAttributes&);
 
-const double NODE_WIDTH = 100.0;
-const double NODE_HEIGHT = 40.0;
+const double NODE_WIDTH = 40.0;
+const double NODE_HEIGHT = 10.0;
 const float EDGE_STROKEWIDTH = 4;
 const double PI = 3.141592653589793238463;
 
@@ -75,15 +82,13 @@ const double CROSSINGS = 2;
 int main() {
 	Graph test;
 	GraphAttributes testAttributes(test, GraphAttributes::nodeGraphics | GraphAttributes::edgeGraphics | GraphAttributes::nodeLabel | GraphAttributes::nodeStyle | GraphAttributes::edgeType | GraphAttributes::edgeArrow | GraphAttributes::edgeStyle | GraphAttributes::edgeLabel);
-	string file = "entities.json";	
-	createGraphFromJson(test, testAttributes, file);
 	
-	//CreateGraphTwo(test, testAttributes);
-	//randomSimpleGraph(test, 20, 30);
-
-	//SetGraphLayout(test, testAttributes);
+	string file = "entities-big_system.json";	
+	createGraphFromJson(test, testAttributes, file);
+	SetGraphLayout(test, testAttributes);
 
 	ERLayoutAlgorithm(test, testAttributes);
+	//PlanarRepresentation(test, testAttributes);
 
 	//CriteriaTesting();
 	return 0;
@@ -95,53 +100,104 @@ void createGraphFromJson(Graph& G, GraphAttributes& GA, string file) {
 	json js;
 	i >> js;
 
+	// map to be able to find nodes with name
 	map<string, node> nodes;
-	int count = 0;
+	map<string, node>::iterator map_it;
 
+	// create all nodes
 	for (size_t i = 0; i < js.size(); i++) {
 		string name = js[i]["name"];
-		// Create nodes
 		node n = G.newNode();
 		GA.label(n) = name;
 		nodes.insert(pair<string, node>(name, n));
 	}	
 
-	map<string, node>::iterator map_it;
-
+	int count = 0;
+	int count2 = 0;
+	
+	// create all edges
 	for (size_t i = 0; i < js.size(); i++) {
-		string source = js[i]["name"];
+		// walk through node members
 		for (size_t j = 0; j < js[i]["members"].size(); j++) {
-			string rel_type = js[i]["members"][j]["relation"];
-			string target = js[i]["members"][j]["type"]["name"];
-
-			if (rel_type != "NONE") {				
+			string type = js[i]["members"][j]["relation"];
+			// check if edge/relation is found
+			if (type != "NONE") {
 				// find source node
+				string source = js[i]["name"];
 				map_it = nodes.find(source);
-				node s = map_it->second;
 
-				// find target node
-				map_it = nodes.find(target);
-				node t = map_it->second;
+				// if source node is found, continue
+				if (map_it != nodes.end()) {
+					// get source node from map
+					node s = map_it->second;
 
-				G.newEdge(s, t);
+					// find target node
+					string target = js[i]["members"][j]["type"]["name"];
+					map_it = nodes.find(target);
+
+					// if target node is found, continue
+					if (map_it != nodes.end()) {
+						// get target node from map
+						node t = map_it->second;
+
+						if (G.searchEdge(t, s) != 0 && GA.label(s) != GA.label(t)) {
+							cout << "Duplicate edge: " << type << endl;
+							count2++;
+						}
+
+						// check for double edges and self-loops
+						if (G.searchEdge(t, s) == 0 && GA.label(s) != GA.label(t)) {
+							// make new edge
+							edge e = G.newEdge(s, t);
+							GA.strokeWidth(e) = 0.5;
+
+							if (type == "UNI_TO_ONE") {
+								GA.strokeType(e) = ogdf::StrokeType::Solid;
+								GA.arrowType(e) = ogdf::EdgeArrow::Last;
+							} else if (type == "BI_MANY_TO_ONE") {
+								GA.strokeType(e) = ogdf::StrokeType::Dash;
+								GA.arrowType(e) = ogdf::EdgeArrow::First;
+							} else if (type == "BI_ONE_TO_MANY") {
+								GA.strokeType(e) = ogdf::StrokeType::Dash;
+								GA.arrowType(e) = ogdf::EdgeArrow::Last;
+							} else if (type == "BI_MANY_TO_MANY") {
+								GA.strokeType(e) = ogdf::StrokeType::Dash;
+								GA.arrowType(e) = ogdf::EdgeArrow::Both;
+							} else if (type == "BI_ONE_TO_ONE") {
+								GA.strokeType(e) = ogdf::StrokeType::Dash;
+								GA.arrowType(e) = ogdf::EdgeArrow::None;
+							}								
+						}
+					}					
+				}
+								
 			}
 		}
 	}
 
+	cout << "Count: " << count << endl;
+	cout << "Count2: " << count2 << endl;
+
+	// check degree and delete non-connected nodes
 	for (map_it = nodes.begin(); map_it != nodes.end(); map_it++) {
 		node n = map_it->second;
 		if (n->degree() == 0) {
 			G.delNode(n);
 		}
-	}
+	}	
 
+	/*
+	// List all nodes
 	for (node n : G.nodes) {
 		cout << "FINAL NODES: " << GA.label(n) << endl;
 	}
-
+	
+	// List all edges
+	cout << endl << endl;
 	for (edge e : G.edges) {
 		cout << "FINAL EDGES: " << GA.label(e->source()) << " -- " << GA.label(e->target()) << endl;
 	}
+	*/
 }
 
 void CriteriaTesting() {
@@ -209,7 +265,7 @@ void ERLayoutAlgorithm(Graph& G, GraphAttributes& GA) {
 
 	MixedModelLayout *ol = new MixedModelLayout;
 	MMCBLocalStretch *cb = new MMCBLocalStretch;
-	ol->separation(180.0);
+	//ol->separation(180.0);
 
 	ol->setCrossingsBeautifier(cb);
 
@@ -219,7 +275,10 @@ void ERLayoutAlgorithm(Graph& G, GraphAttributes& GA) {
 
 	cout << "number of crossings: " << pl.numberOfCrossings() << endl;
 
-	GraphIO::write(GA, "C:\\Users\\Bart\\Desktop\\Output6.svg", GraphIO::drawSVG);
+	GraphIO::SVGSettings settings;
+	settings.fontSize(2);
+
+	GraphIO::drawSVG(GA, "C:\\Users\\Bart\\Desktop\\Output6.svg", settings);
 }
 
 void GetDegrees(Graph&G, GraphAttributes& GA) {
@@ -250,34 +309,32 @@ void addRelations(Graph& G, GraphAttributes& GA) {
 }
 
 void PlanarRepresentation(Graph& G, GraphAttributes& GA) {
-	cout << "Edges before: " << G.edges.size() << endl;
-
+	PlanarSubgraphBoyerMyrvold ps = PlanarSubgraphBoyerMyrvold();
 	List<edge> deletedEdges;
-	int arraySize = 0;
 
-	PlanarSubgraphBoyerMyrvold ps = PlanarSubgraphBoyerMyrvold(2, 1.0);
+	GraphCopy GC = GraphCopy(G);
 	ps.call(G, deletedEdges);
-	
-	cout << "Deleted edges: " << endl;
-	for (edge e: deletedEdges) {
-		cout << "edge: " << e->source() << " --- " << e->target() << endl;
+
+	for (edge e : deletedEdges) {
 		G.delEdge(e);
-		arraySize++;
 	}
 
-	cout << endl << endl;
-	cout << "Edges after: " << G.edges.size() << endl;
+	cout << endl << "deleted: " << deletedEdges.size() << endl;
 
-	cout << endl << endl;
-	cout << endl << endl;
-	cout << "IS PLANAR? " << isPlanar(G) << endl;
+	//SchnyderLayout *sl = new SchnyderLayout;
+	//sl->call(GA);
 
-	PlanarizationGridLayout pgl;
+	//PlanarDrawLayout *pdl = new PlanarDrawLayout;
+	//pdl->call(GA);
 
-	pgl.call(GA);
-	GraphIO::write(GA, "C:\\Users\\Bart\\Desktop\\Output4.svg", GraphIO::drawSVG);
+	PlanarStraightLayout *psl = new PlanarStraightLayout;
+	psl->call(GA);
 
-	cout << "Number of crossings: " << pgl.numberOfCrossings() << endl;
+	// set fontsize
+	GraphIO::SVGSettings settings;
+	settings.fontSize(2);
+	// draw graph
+	GraphIO::drawSVG(GA, "C:\\Users\\Bart\\Desktop\\Output6.svg", settings);
 }
 
 void OrthogonalLayout(Graph& G, GraphAttributes& GA) {
@@ -466,26 +523,8 @@ void CreateGraph(Graph& G, GraphAttributes& GA) {
 }
 
 void SetGraphLayout(Graph& G, GraphAttributes& GA) {
-	for (node v : G.nodes) {
-		GA.height(v) = NODE_HEIGHT; // set the height to 20.0
-		GA.width(v) = NODE_WIDTH; // set the width to 40.0
-
-		//if (GA.shape(v) == Shape::Rect) {
-		//string s = to_string(v->index());
-		//char const *pchar = s.c_str(); //use char const* as target type
-		//GA.label(v) = pchar;
-		//}
-	}
-
-	for (edge e : G.edges) {// set default edge color and type
-		GA.arrowType(e) = ogdf::EdgeArrow::None;
-		GA.strokeColor(e) = Color("#bababa");
-		GA.strokeWidth(e) = 1;
-
-		string s2 = to_string(e->index());
-		char const *pchar2 = s2.c_str(); //use char const* as target type
-		GA.label(e) = pchar2;
-	}
+	GA.setAllHeight(NODE_HEIGHT);
+	GA.setAllWidth(NODE_WIDTH);
 }
 
 // create testGraph to test criteria imlementations
@@ -548,4 +587,23 @@ void CreateGraphTwo(Graph& graph, GraphAttributes& GA) {
 		GA.strokeType(e) = ogdf::StrokeType::Solid;
 		GA.strokeColor(e) = Color("#bababa");
 	}
+}
+
+void CreateGraphThree(Graph& G, GraphAttributes& GA) {
+	// add nodes
+	node ROLES = G.newNode();
+	node USERS = G.newNode();
+	node MESSAGES = G.newNode();
+	node ORDERS = G.newNode();
+	node PRODUCTS = G.newNode();
+	node ORDER_LINES = G.newNode();
+
+	// add edges
+	edge a = G.newEdge(ROLES, USERS);
+	edge b = G.newEdge(MESSAGES, USERS);
+	edge c = G.newEdge(ORDERS, USERS);
+	edge d = G.newEdge(ORDERS, ORDER_LINES);
+	edge e = G.newEdge(ORDER_LINES, PRODUCTS);
+	//edge f = G.newEdge(ORDER_LINES, ORDERS);
+	//edge g = G.newEdge(USERS, ROLES);
 }
