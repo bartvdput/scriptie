@@ -53,10 +53,11 @@ void CreateGraphTwo(Graph&, GraphAttributes&);
 
 void BendPromotion(Graph&, GraphAttributes&);
 void SetGraphLayout(Graph&, GraphAttributes&);
-double BendCriterium(Graph&, GraphAttributes&);
-double CrossingCriterium(Graph&, GraphAttributes&, double);
-double NodeOrthogonalityCriterium(Graph&, GraphAttributes&);
-double EdgeOrthogonalityCriterium(Graph&, GraphAttributes&);
+double BendCriterion(Graph&, GraphAttributes&);
+double CrossingCriterion(Graph&, GraphAttributes&, double);
+double AngleCriterion(Graph&, GraphAttributes&);
+double NodeOrthogonalityCriterion(Graph&, GraphAttributes&);
+double EdgeOrthogonalityCriterion(Graph&, GraphAttributes&);
 void CriteriaTesting(Graph&, GraphAttributes&, int);
 void addRelations(Graph&, GraphAttributes&);
 int ERLayoutAlgorithm(Graph&, GraphAttributes&);
@@ -70,12 +71,12 @@ const double PI = 3.141592653589793238463;
 
 int main() {
 	Graph test;
-	GraphAttributes testAttributes(test, GraphAttributes::nodeGraphics | GraphAttributes::edgeGraphics | GraphAttributes::nodeLabel | GraphAttributes::nodeStyle | GraphAttributes::edgeType | GraphAttributes::edgeArrow | GraphAttributes::edgeStyle | GraphAttributes::edgeLabel);
+	GraphAttributes testAttributes(test, GraphAttributes::nodeType | GraphAttributes::nodeGraphics | GraphAttributes::edgeGraphics | GraphAttributes::nodeLabel | GraphAttributes::nodeStyle | GraphAttributes::edgeType | GraphAttributes::edgeArrow | GraphAttributes::edgeStyle | GraphAttributes::edgeLabel);
 	
 	// read file
-	string file;
-	cout << "Enter file name to read in: " << endl;	
-	cin >> file;
+	string file = "entities-big_system.json";
+	//cout << "Enter file name to read in: " << endl;	
+	//cin >> file;
 	createGraphFromJson(test, testAttributes, file);
 
 	// set some layout properties
@@ -89,10 +90,13 @@ int main() {
 	settings.fontSize(2);
 	GraphIO::drawSVG(testAttributes, "C:\\Users\\Bart\\Desktop\\ERD.svg", settings);
 
+	cout << "nr of crossings: " << CROSSINGS << endl;
+
 	// calculate criteria value
 	CriteriaTesting(test, testAttributes, CROSSINGS);
 
-	//CriteriaTesting();
+	// draw after bend promotion
+	GraphIO::drawSVG(testAttributes, "C:\\Users\\Bart\\Desktop\\ERD2.svg", settings);
 	return 0;
 }
 
@@ -150,8 +154,7 @@ void createGraphFromJson(Graph& G, GraphAttributes& GA, string file) {
 							cout << "edge: " << GA.label(s) << " -- " << GA.label(t) << " type: " << type << endl;
 							cout << "edge: " << GA.label(t) << " -- " << GA.label(s) << " type: " << map_it2->second << endl << endl;
 						}
-						*/
-						
+						*/					
 
 						// check for double edges and self-loops
 						if (G.searchEdge(t, s) == 0 && GA.label(s) != GA.label(t)) {
@@ -211,35 +214,36 @@ void createGraphFromJson(Graph& G, GraphAttributes& GA, string file) {
 }
 
 int ERLayoutAlgorithm(Graph& G, GraphAttributes& GA) {
-	PlanarizationGridLayout pl;
+	int CROSSINGS = 0;
+
+	PlanarizationLayout pl;
 	SubgraphPlanarizer *crossMin = new SubgraphPlanarizer;
 
-	// Get a planar subgraph using Boyer Myrvold Algorithm
-	PlanarSubgraphBoyerMyrvold *ps = new PlanarSubgraphBoyerMyrvold;
+	PlanarSubgraphFast<int> *ps = new PlanarSubgraphFast<int>;
 	VariableEmbeddingInserter *ves = new VariableEmbeddingInserter;
 
 	crossMin->setSubgraph(ps);
 	crossMin->setInserter(ves);
 
-	MixedModelLayout *ol = new MixedModelLayout;
-	MMCBLocalStretch *cb = new MMCBLocalStretch;
-	//ol->separation(180.0);
+	OrthoLayout *ol = new OrthoLayout;
+	//ol->separation(20.0);
+	//ol->cOverhang(0.4);
 
-	ol->setCrossingsBeautifier(cb);
-
-	pl.setPlanarLayouter(ol);
+	pl.setPlanarLayouter(ol);	
 
 	pl.call(GA);
 
-	return pl.numberOfCrossings();
+	CROSSINGS = pl.numberOfCrossings();
+	
+	return CROSSINGS;
 }
 
 void CriteriaTesting(Graph& G, GraphAttributes& GA, int CROSSINGS) {
 	// test criteria
-	double Nb = BendCriterium(G, GA);
-	double Nc = CrossingCriterium(G, GA, CROSSINGS);
-	double Nno = NodeOrthogonalityCriterium(G, GA);
-	double Neo = EdgeOrthogonalityCriterium(G, GA);
+	double Nb = BendCriterion(G, GA);
+	double Nc = CrossingCriterion(G, GA, CROSSINGS);
+	double Nno = NodeOrthogonalityCriterion(G, GA);
+	double Neo = EdgeOrthogonalityCriterion(G, GA);
 
 	cout << "Criteria" << endl << endl;
 	cout << "Crossings (N_c): " << Nc << endl;
@@ -324,14 +328,14 @@ void BendPromotion(Graph& G, GraphAttributes& GA) {
 }
 
 /*
- * calculate bend criterium
+ * calculate bend criterion
  */
-double BendCriterium(Graph& G, GraphAttributes& GA) {
+double BendCriterion(Graph& G, GraphAttributes& GA) {
 	// original amount of edges
 	double m = G.edges.size();
 
 	/*
-	 * Maybe get this out of this function, because this is not the only criterium that uses bendpromotion
+	 * Maybe get this out of this function, because this is not the only criterion that uses bendpromotion
 	 */
 	BendPromotion(G, GA);
 
@@ -345,9 +349,9 @@ double BendCriterium(Graph& G, GraphAttributes& GA) {
 }
 
 /*
- * calculate crossing criterium
+ * calculate crossing criterion
  */
-double CrossingCriterium(Graph& G, GraphAttributes& GA, double c) {
+double CrossingCriterion(Graph& G, GraphAttributes& GA, double c) {
 	// calculate all (theoretically) possible edge crossings
 	double m2 = G.edges.size();
 	double c_all = (m2 * (m2 - 1)) / 2;
@@ -365,7 +369,7 @@ double CrossingCriterium(Graph& G, GraphAttributes& GA, double c) {
 	// calculate real max possible crossings
 	double c_max = c_all - c_impossible;
 
-	// calculate crossings criterium
+	// calculate crossings criterion
 	double Nc = 1;
 	if (c_max > 0) {
 		Nc -= (c / c_max);
@@ -375,9 +379,9 @@ double CrossingCriterium(Graph& G, GraphAttributes& GA, double c) {
 }
 
 /*
- * calculate edge orthogonality criterium
+ * calculate edge orthogonality criterion
  */
-double EdgeOrthogonalityCriterium(Graph& G, GraphAttributes& GA) {
+double EdgeOrthogonalityCriterion(Graph& G, GraphAttributes& GA) {
 	double sum = 0;
 
 	for (edge e : G.edges) {
@@ -404,12 +408,12 @@ double EdgeOrthogonalityCriterium(Graph& G, GraphAttributes& GA) {
 }
 
 /*
- * calculate node orthogonality criterium
+ * calculate node orthogonality criterion
  *
  * TODO: calculate value '2 * NODE_SIZE' from: 
  * GCD of the set of vertical and horizontal (pixel) differences between all geometrically adjacent nodes.
  */
-double NodeOrthogonalityCriterium(Graph& G, GraphAttributes& GA) {
+double NodeOrthogonalityCriterion(Graph& G, GraphAttributes& GA) {
 	double width = 0, height = 0;
 	for (node n : G.nodes) {
 		double nodeWidth = GA.x(n) / (2 * NODE_WIDTH);
@@ -426,6 +430,17 @@ double NodeOrthogonalityCriterium(Graph& G, GraphAttributes& GA) {
 	double Nno = G.nodes.size() / A;
 
 	return Nno;
+}
+
+double AngleCriterion(Graph& G, GraphAttributes& GA) {
+	double maxAngle = 0.0;
+	List<edge> edges;
+	for (node n : G.nodes) {
+		maxAngle = 360 / n->degree();
+		n->adjEdges(edges);
+	}
+
+	return maxAngle;
 }
 
 // create testGraph to test criteria imlementations
