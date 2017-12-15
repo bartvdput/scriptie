@@ -57,38 +57,40 @@ double BendCriterium(Graph&, GraphAttributes&);
 double CrossingCriterium(Graph&, GraphAttributes&, double);
 double NodeOrthogonalityCriterium(Graph&, GraphAttributes&);
 double EdgeOrthogonalityCriterium(Graph&, GraphAttributes&);
-void OrthogonalLayout(Graph&, GraphAttributes&);
-void PlanarRepresentation(Graph&, GraphAttributes&);
-void GetDegrees(Graph&, GraphAttributes&);
-void CriteriaTesting();
-void SubGraphPlan(Graph&, GraphAttributes&);
+void CriteriaTesting(Graph&, GraphAttributes&, int);
 void addRelations(Graph&, GraphAttributes&);
-void ERLayoutAlgorithm(Graph&, GraphAttributes&);
-void Planarize(Graph&, GraphAttributes&);
-void Embed(Graph&, GraphAttributes&);
-void Orthogonalize(Graph&, GraphAttributes&);
+int ERLayoutAlgorithm(Graph&, GraphAttributes&);
 int getBiconnectedComponents(Graph&);
 void createGraphFromJson(Graph&, GraphAttributes&, string);
-void CreateGraphThree(Graph&, GraphAttributes&);
 
 const double NODE_WIDTH = 40.0;
-const double NODE_HEIGHT = 10.0;
+const double NODE_HEIGHT = 20.0;
 const float EDGE_STROKEWIDTH = 4;
 const double PI = 3.141592653589793238463;
-
-// now hardcoded for test graph, need to be able to get this value from my own layout-algorithm
-const double CROSSINGS = 2;
 
 int main() {
 	Graph test;
 	GraphAttributes testAttributes(test, GraphAttributes::nodeGraphics | GraphAttributes::edgeGraphics | GraphAttributes::nodeLabel | GraphAttributes::nodeStyle | GraphAttributes::edgeType | GraphAttributes::edgeArrow | GraphAttributes::edgeStyle | GraphAttributes::edgeLabel);
 	
-	string file = "entities-big_system.json";	
+	// read file
+	string file;
+	cout << "Enter file name to read in: " << endl;	
+	cin >> file;
 	createGraphFromJson(test, testAttributes, file);
+
+	// set some layout properties
 	SetGraphLayout(test, testAttributes);
 
-	ERLayoutAlgorithm(test, testAttributes);
-	//PlanarRepresentation(test, testAttributes);
+	// calculate layout and return number of crossings
+	int CROSSINGS = ERLayoutAlgorithm(test, testAttributes);
+
+	// draw graph to svg file
+	GraphIO::SVGSettings settings;
+	settings.fontSize(2);
+	GraphIO::drawSVG(testAttributes, "C:\\Users\\Bart\\Desktop\\ERD.svg", settings);
+
+	// calculate criteria value
+	CriteriaTesting(test, testAttributes, CROSSINGS);
 
 	//CriteriaTesting();
 	return 0;
@@ -104,16 +106,17 @@ void createGraphFromJson(Graph& G, GraphAttributes& GA, string file) {
 	map<string, node> nodes;
 	map<string, node>::iterator map_it;
 
+	//map<edge, string> relTypes;
+	//map<edge, string>::iterator map_it2;
+
 	// create all nodes
 	for (size_t i = 0; i < js.size(); i++) {
 		string name = js[i]["name"];
 		node n = G.newNode();
 		GA.label(n) = name;
+		GA.fillColor(n) = Color::Name::Aquamarine;
 		nodes.insert(pair<string, node>(name, n));
 	}	
-
-	int count = 0;
-	int count2 = 0;
 	
 	// create all edges
 	for (size_t i = 0; i < js.size(); i++) {
@@ -138,22 +141,30 @@ void createGraphFromJson(Graph& G, GraphAttributes& GA, string file) {
 					// if target node is found, continue
 					if (map_it != nodes.end()) {
 						// get target node from map
-						node t = map_it->second;
+						node t = map_it->second; 
 
-						if (G.searchEdge(t, s) != 0 && GA.label(s) != GA.label(t)) {
-							cout << "Duplicate edge: " << type << endl;
-							count2++;
+						/*
+						edge ed = G.searchEdge(t, s);
+						if (ed != 0) {
+							map_it2 = relTypes.find(ed);
+							cout << "edge: " << GA.label(s) << " -- " << GA.label(t) << " type: " << type << endl;
+							cout << "edge: " << GA.label(t) << " -- " << GA.label(s) << " type: " << map_it2->second << endl << endl;
 						}
+						*/
+						
 
 						// check for double edges and self-loops
 						if (G.searchEdge(t, s) == 0 && GA.label(s) != GA.label(t)) {
 							// make new edge
 							edge e = G.newEdge(s, t);
+							//relTypes.insert(pair<edge, string>(e, type));
 							GA.strokeWidth(e) = 0.5;
 
 							if (type == "UNI_TO_ONE") {
 								GA.strokeType(e) = ogdf::StrokeType::Solid;
-								GA.arrowType(e) = ogdf::EdgeArrow::Last;
+								GA.arrowType(e) = ogdf::EdgeArrow::None;
+								GA.fillColor(s) = Color::Name::White;
+								GA.fillColor(t) = Color::Name::White;
 							} else if (type == "BI_MANY_TO_ONE") {
 								GA.strokeType(e) = ogdf::StrokeType::Dash;
 								GA.arrowType(e) = ogdf::EdgeArrow::First;
@@ -166,6 +177,8 @@ void createGraphFromJson(Graph& G, GraphAttributes& GA, string file) {
 							} else if (type == "BI_ONE_TO_ONE") {
 								GA.strokeType(e) = ogdf::StrokeType::Dash;
 								GA.arrowType(e) = ogdf::EdgeArrow::None;
+								GA.fillColor(s) = Color::Name::White;
+								GA.fillColor(t) = Color::Name::White;
 							}								
 						}
 					}					
@@ -174,9 +187,6 @@ void createGraphFromJson(Graph& G, GraphAttributes& GA, string file) {
 			}
 		}
 	}
-
-	cout << "Count: " << count << endl;
-	cout << "Count2: " << count2 << endl;
 
 	// check degree and delete non-connected nodes
 	for (map_it = nodes.begin(); map_it != nodes.end(); map_it++) {
@@ -200,26 +210,36 @@ void createGraphFromJson(Graph& G, GraphAttributes& GA, string file) {
 	*/
 }
 
-void CriteriaTesting() {
-	// construct graph
-	Graph graph;
-	GraphAttributes graphAttributes(graph, GraphAttributes::nodeGraphics | GraphAttributes::edgeGraphics | GraphAttributes::nodeLabel | GraphAttributes::nodeStyle | GraphAttributes::edgeType | GraphAttributes::edgeArrow | GraphAttributes::edgeStyle);
+int ERLayoutAlgorithm(Graph& G, GraphAttributes& GA) {
+	PlanarizationGridLayout pl;
+	SubgraphPlanarizer *crossMin = new SubgraphPlanarizer;
 
-	Graph graphCopy;
-	GraphAttributes graphAttributesCopy(graphCopy, GraphAttributes::nodeGraphics | GraphAttributes::edgeGraphics | GraphAttributes::nodeLabel | GraphAttributes::nodeStyle | GraphAttributes::edgeType | GraphAttributes::edgeArrow | GraphAttributes::edgeStyle);
+	// Get a planar subgraph using Boyer Myrvold Algorithm
+	PlanarSubgraphBoyerMyrvold *ps = new PlanarSubgraphBoyerMyrvold;
+	VariableEmbeddingInserter *ves = new VariableEmbeddingInserter;
 
-	// set layouts for graph 
-	CreateGraph(graph, graphAttributes);
-	SetGraphLayout(graph, graphAttributes);
+	crossMin->setSubgraph(ps);
+	crossMin->setInserter(ves);
 
-	CreateGraph(graphCopy, graphAttributesCopy);
-	SetGraphLayout(graphCopy, graphAttributesCopy);
+	MixedModelLayout *ol = new MixedModelLayout;
+	MMCBLocalStretch *cb = new MMCBLocalStretch;
+	//ol->separation(180.0);
 
+	ol->setCrossingsBeautifier(cb);
+
+	pl.setPlanarLayouter(ol);
+
+	pl.call(GA);
+
+	return pl.numberOfCrossings();
+}
+
+void CriteriaTesting(Graph& G, GraphAttributes& GA, int CROSSINGS) {
 	// test criteria
-	double Nb = BendCriterium(graphCopy, graphAttributesCopy);
-	double Nc = CrossingCriterium(graphCopy, graphAttributesCopy, CROSSINGS);
-	double Nno = NodeOrthogonalityCriterium(graphCopy, graphAttributesCopy);
-	double Neo = EdgeOrthogonalityCriterium(graphCopy, graphAttributesCopy);
+	double Nb = BendCriterium(G, GA);
+	double Nc = CrossingCriterium(G, GA, CROSSINGS);
+	double Nno = NodeOrthogonalityCriterium(G, GA);
+	double Neo = EdgeOrthogonalityCriterium(G, GA);
 
 	cout << "Criteria" << endl << endl;
 	cout << "Crossings (N_c): " << Nc << endl;
@@ -227,10 +247,6 @@ void CriteriaTesting() {
 	cout << "Node Ortho (N_no): " << Nno << endl;
 	cout << "Edge Ortho (N_eo): " << Neo << endl;
 	cout << endl << endl;
-
-	//draw graphs
-	GraphIO::write(graphAttributes, "C:\\Users\\Bart\\Desktop\\Output.svg", GraphIO::drawSVG);
-	GraphIO::write(graphAttributesCopy, "C:\\Users\\Bart\\Desktop\\Output2.svg", GraphIO::drawSVG);
 }
 
 int getBiconnectedComponents(Graph& G) {
@@ -252,43 +268,6 @@ int getBiconnectedComponents(Graph& G) {
 	return count;
 }
 
-void ERLayoutAlgorithm(Graph& G, GraphAttributes& GA) {
-	PlanarizationGridLayout pl;
-	SubgraphPlanarizer *crossMin = new SubgraphPlanarizer;
-
-	// Get a planar subgraph using Boyer Myrvold Algorithm
-	PlanarSubgraphBoyerMyrvold *ps = new PlanarSubgraphBoyerMyrvold;
-	VariableEmbeddingInserter *ves = new VariableEmbeddingInserter;
-
-	crossMin->setSubgraph(ps);
-	crossMin->setInserter(ves);
-
-	MixedModelLayout *ol = new MixedModelLayout;
-	MMCBLocalStretch *cb = new MMCBLocalStretch;
-	//ol->separation(180.0);
-
-	ol->setCrossingsBeautifier(cb);
-
-	pl.setPlanarLayouter(ol);
-
-	pl.call(GA);
-
-	cout << "number of crossings: " << pl.numberOfCrossings() << endl;
-
-	GraphIO::SVGSettings settings;
-	settings.fontSize(2);
-
-	GraphIO::drawSVG(GA, "C:\\Users\\Bart\\Desktop\\Output6.svg", settings);
-}
-
-void GetDegrees(Graph&G, GraphAttributes& GA) {
-	for (node n : G.nodes) {
-		if (GA.shape(n) == Shape::Rect) {
-			cout << "Node " << n->index() << " degree: " << n->degree() << endl;
-		}
-	}
-}
-
 void addRelations(Graph& G, GraphAttributes& GA) {
 	List<edge> originalEdges;
 	G.allEdges(originalEdges);
@@ -306,41 +285,6 @@ void addRelations(Graph& G, GraphAttributes& GA) {
 
 		G.delEdge(e);
 	}
-}
-
-void PlanarRepresentation(Graph& G, GraphAttributes& GA) {
-	PlanarSubgraphBoyerMyrvold ps = PlanarSubgraphBoyerMyrvold();
-	List<edge> deletedEdges;
-
-	GraphCopy GC = GraphCopy(G);
-	ps.call(G, deletedEdges);
-
-	for (edge e : deletedEdges) {
-		G.delEdge(e);
-	}
-
-	cout << endl << "deleted: " << deletedEdges.size() << endl;
-
-	//SchnyderLayout *sl = new SchnyderLayout;
-	//sl->call(GA);
-
-	//PlanarDrawLayout *pdl = new PlanarDrawLayout;
-	//pdl->call(GA);
-
-	PlanarStraightLayout *psl = new PlanarStraightLayout;
-	psl->call(GA);
-
-	// set fontsize
-	GraphIO::SVGSettings settings;
-	settings.fontSize(2);
-	// draw graph
-	GraphIO::drawSVG(GA, "C:\\Users\\Bart\\Desktop\\Output6.svg", settings);
-}
-
-void OrthogonalLayout(Graph& G, GraphAttributes& GA) {
-	PlanarizationGridLayout pgl;
-	pgl.call(GA);
-	GraphIO::write(GA, "C:\\Users\\Bart\\Desktop\\Output3.svg", GraphIO::drawSVG);
 }
 
 void BendPromotion(Graph& G, GraphAttributes& GA) {
@@ -408,7 +352,7 @@ double CrossingCriterium(Graph& G, GraphAttributes& GA, double c) {
 	double m2 = G.edges.size();
 	double c_all = (m2 * (m2 - 1)) / 2;
 
-	// calculate imopssible edge crossings
+	// calculate impossible edge crossings
 	double c_impossible = 0;
 
 	for (node n : G.nodes) {
@@ -587,23 +531,4 @@ void CreateGraphTwo(Graph& graph, GraphAttributes& GA) {
 		GA.strokeType(e) = ogdf::StrokeType::Solid;
 		GA.strokeColor(e) = Color("#bababa");
 	}
-}
-
-void CreateGraphThree(Graph& G, GraphAttributes& GA) {
-	// add nodes
-	node ROLES = G.newNode();
-	node USERS = G.newNode();
-	node MESSAGES = G.newNode();
-	node ORDERS = G.newNode();
-	node PRODUCTS = G.newNode();
-	node ORDER_LINES = G.newNode();
-
-	// add edges
-	edge a = G.newEdge(ROLES, USERS);
-	edge b = G.newEdge(MESSAGES, USERS);
-	edge c = G.newEdge(ORDERS, USERS);
-	edge d = G.newEdge(ORDERS, ORDER_LINES);
-	edge e = G.newEdge(ORDER_LINES, PRODUCTS);
-	//edge f = G.newEdge(ORDER_LINES, ORDERS);
-	//edge g = G.newEdge(USERS, ROLES);
 }
