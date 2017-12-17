@@ -43,6 +43,7 @@
 #include <ogdf/planarlayout/SchnyderLayout.h>
 #include <ogdf/planarlayout/PlanarDrawLayout.h>
 #include <ogdf/planarlayout/PlanarStraightLayout.h>
+#include <ogdf/graphalg/PageRank.h>
 
 using namespace ogdf;
 using namespace std;
@@ -62,45 +63,61 @@ void CriteriaTesting(Graph&, GraphAttributes&, int);
 void addRelations(Graph&, GraphAttributes&);
 int ERLayoutAlgorithm(Graph&, GraphAttributes&);
 int getBiconnectedComponents(Graph&);
-void createGraphFromJson(Graph&, GraphAttributes&, string);
+void CreateGraphFromJson(Graph&, GraphAttributes&, string);
+void FindImportantNodes(Graph&, GraphAttributes&);
 
-const double NODE_WIDTH = 40.0;
+const double NODE_WIDTH = 20.0;
 const double NODE_HEIGHT = 20.0;
-const float EDGE_STROKEWIDTH = 4;
+const float STROKEWIDTH = 0.2f;
 const double PI = 3.141592653589793238463;
 
 int main() {
-	Graph test;
-	GraphAttributes testAttributes(test, GraphAttributes::nodeType | GraphAttributes::nodeGraphics | GraphAttributes::edgeGraphics | GraphAttributes::nodeLabel | GraphAttributes::nodeStyle | GraphAttributes::edgeType | GraphAttributes::edgeArrow | GraphAttributes::edgeStyle | GraphAttributes::edgeLabel);
+	Graph G;
+	GraphAttributes GA(G, GraphAttributes::nodeType | GraphAttributes::nodeGraphics | GraphAttributes::edgeGraphics | GraphAttributes::nodeLabel | GraphAttributes::nodeStyle | GraphAttributes::edgeType | GraphAttributes::edgeArrow | GraphAttributes::edgeStyle | GraphAttributes::edgeLabel);
 	
 	// read file
 	string file = "entities-big_system.json";
 	//cout << "Enter file name to read in: " << endl;	
 	//cin >> file;
-	createGraphFromJson(test, testAttributes, file);
+	CreateGraphFromJson(G, GA, file);
+	//CreateGraphTwo(G, GA);
+	//CreateGraph(G, GA);
+
+	// List all nodes
+	for (node n : G.nodes) {
+		cout << "FINAL NODES: " << GA.label(n) << endl;
+	}
+
+	// List all edges
+	cout << endl << endl;
+	for (edge e : G.edges) {
+		cout << "FINAL EDGES: " << GA.label(e->source()) << " -- " << GA.label(e->target()) << endl;
+	}
+
+	//FindImportantNodes(G, GA);
 
 	// set some layout properties
-	SetGraphLayout(test, testAttributes);
+	SetGraphLayout(G, GA);
 
 	// calculate layout and return number of crossings
-	int CROSSINGS = ERLayoutAlgorithm(test, testAttributes);
+	int CROSSINGS = ERLayoutAlgorithm(G, GA);
 
 	// draw graph to svg file
 	GraphIO::SVGSettings settings;
 	settings.fontSize(2);
-	GraphIO::drawSVG(testAttributes, "C:\\Users\\Bart\\Desktop\\ERD.svg", settings);
+	GraphIO::drawSVG(GA, "C:\\Users\\Bart\\Desktop\\ERD.svg", settings);
 
 	cout << "nr of crossings: " << CROSSINGS << endl;
 
 	// calculate criteria value
-	CriteriaTesting(test, testAttributes, CROSSINGS);
+	CriteriaTesting(G, GA, CROSSINGS);
 
-	// draw after bend promotion
-	GraphIO::drawSVG(testAttributes, "C:\\Users\\Bart\\Desktop\\ERD2.svg", settings);
+	//GraphIO::drawSVG(GA, "C:\\Users\\Bart\\Desktop\\ERD2.svg", settings);
+
 	return 0;
 }
 
-void createGraphFromJson(Graph& G, GraphAttributes& GA, string file) {
+void CreateGraphFromJson(Graph& G, GraphAttributes& GA, string file) {
 	// Read JSON file
 	ifstream i(file);
 	json js;
@@ -110,15 +127,11 @@ void createGraphFromJson(Graph& G, GraphAttributes& GA, string file) {
 	map<string, node> nodes;
 	map<string, node>::iterator map_it;
 
-	//map<edge, string> relTypes;
-	//map<edge, string>::iterator map_it2;
-
 	// create all nodes
 	for (size_t i = 0; i < js.size(); i++) {
 		string name = js[i]["name"];
 		node n = G.newNode();
 		GA.label(n) = name;
-		GA.fillColor(n) = Color::Name::Aquamarine;
 		nodes.insert(pair<string, node>(name, n));
 	}	
 	
@@ -145,16 +158,7 @@ void createGraphFromJson(Graph& G, GraphAttributes& GA, string file) {
 					// if target node is found, continue
 					if (map_it != nodes.end()) {
 						// get target node from map
-						node t = map_it->second; 
-
-						/*
-						edge ed = G.searchEdge(t, s);
-						if (ed != 0) {
-							map_it2 = relTypes.find(ed);
-							cout << "edge: " << GA.label(s) << " -- " << GA.label(t) << " type: " << type << endl;
-							cout << "edge: " << GA.label(t) << " -- " << GA.label(s) << " type: " << map_it2->second << endl << endl;
-						}
-						*/					
+						node t = map_it->second; 					
 
 						// check for double edges and self-loops
 						if (G.searchEdge(t, s) == 0 && GA.label(s) != GA.label(t)) {
@@ -166,8 +170,6 @@ void createGraphFromJson(Graph& G, GraphAttributes& GA, string file) {
 							if (type == "UNI_TO_ONE") {
 								GA.strokeType(e) = ogdf::StrokeType::Solid;
 								GA.arrowType(e) = ogdf::EdgeArrow::None;
-								GA.fillColor(s) = Color::Name::White;
-								GA.fillColor(t) = Color::Name::White;
 							} else if (type == "BI_MANY_TO_ONE") {
 								GA.strokeType(e) = ogdf::StrokeType::Dash;
 								GA.arrowType(e) = ogdf::EdgeArrow::First;
@@ -180,8 +182,6 @@ void createGraphFromJson(Graph& G, GraphAttributes& GA, string file) {
 							} else if (type == "BI_ONE_TO_ONE") {
 								GA.strokeType(e) = ogdf::StrokeType::Dash;
 								GA.arrowType(e) = ogdf::EdgeArrow::None;
-								GA.fillColor(s) = Color::Name::White;
-								GA.fillColor(t) = Color::Name::White;
 							}								
 						}
 					}					
@@ -198,22 +198,31 @@ void createGraphFromJson(Graph& G, GraphAttributes& GA, string file) {
 			G.delNode(n);
 		}
 	}	
+}
 
-	/*
-	// List all nodes
-	for (node n : G.nodes) {
-		cout << "FINAL NODES: " << GA.label(n) << endl;
+void FindImportantNodes(Graph& G, GraphAttributes& GA) {
+	EdgeArray<double> edgeWeight = EdgeArray<double>(G);
+	NodeArray<double> pageRank = NodeArray<double>(G);
+	NodeArray<double>::iterator it;
+
+	BasicPageRank pr;
+	pr.call(G, edgeWeight, pageRank);
+
+	for (it = pageRank.begin(); it != pageRank.end(); it++) {
+		double rank = it.value();
+		node n = it.key();
+		if (rank > 0.5) {
+			GA.fillColor(n) = Color::Name::Blue;
+		}
+		else if (rank > 0.2) {
+			GA.fillColor(n) = Color::Name::Lightblue;
+		}
+		cout << GA.label(it.key()) << ": " << it.value() << endl;
 	}
-	
-	// List all edges
-	cout << endl << endl;
-	for (edge e : G.edges) {
-		cout << "FINAL EDGES: " << GA.label(e->source()) << " -- " << GA.label(e->target()) << endl;
-	}
-	*/
 }
 
 int ERLayoutAlgorithm(Graph& G, GraphAttributes& GA) {
+	cout << "Node count: " << G.nodes.size() << endl;
 	int CROSSINGS = 0;
 
 	PlanarizationLayout pl;
@@ -226,8 +235,8 @@ int ERLayoutAlgorithm(Graph& G, GraphAttributes& GA) {
 	crossMin->setInserter(ves);
 
 	OrthoLayout *ol = new OrthoLayout;
-	//ol->separation(20.0);
-	//ol->cOverhang(0.4);
+	ol->separation(NODE_WIDTH);
+	ol->cOverhang(1.0);
 
 	pl.setPlanarLayouter(ol);	
 
@@ -240,15 +249,19 @@ int ERLayoutAlgorithm(Graph& G, GraphAttributes& GA) {
 
 void CriteriaTesting(Graph& G, GraphAttributes& GA, int CROSSINGS) {
 	// test criteria
+	double Nno_nodes = NodeOrthogonalityCriterion(G, GA);
 	double Nb = BendCriterion(G, GA);
 	double Nc = CrossingCriterion(G, GA, CROSSINGS);
-	double Nno = NodeOrthogonalityCriterion(G, GA);
+	double Nno_nodes_bends = NodeOrthogonalityCriterion(G, GA);
 	double Neo = EdgeOrthogonalityCriterion(G, GA);
+	
+	cout << endl << "HALLO?" << endl << endl;
 
 	cout << "Criteria" << endl << endl;
 	cout << "Crossings (N_c): " << Nc << endl;
 	cout << "Bends (N_b): " << Nb << endl;
-	cout << "Node Ortho (N_no): " << Nno << endl;
+	cout << "Node Ortho (N_no): " << Nno_nodes << endl;
+	cout << "Node & Bend Ortho (N_no): " << Nno_nodes_bends << endl;
 	cout << "Edge Ortho (N_eo): " << Neo << endl;
 	cout << endl << endl;
 }
@@ -272,32 +285,13 @@ int getBiconnectedComponents(Graph& G) {
 	return count;
 }
 
-void addRelations(Graph& G, GraphAttributes& GA) {
-	List<edge> originalEdges;
-	G.allEdges(originalEdges);
-		
-	for (edge& e : originalEdges) {		
-		node s = e->source();
-		node t = e->target();
-
-		node R = G.newNode();
-
-		G.newEdge(s, R);
-		G.newEdge(R, t);
-
-		GA.shape(R) = Shape::Rhomb;
-
-		G.delEdge(e);
-	}
-}
-
 void BendPromotion(Graph& G, GraphAttributes& GA) {
 	List<edge> edges;
 	G.allEdges(edges);
 
 	while (!edges.empty()) {
 		edge e = edges.popFrontRet();
-		DPolyline bends_e = GA.bends(e);
+		DPolyline bends_e = GA.bends(e);		
 		node s = e->source();
 		node t = e->target();
 
@@ -308,6 +302,9 @@ void BendPromotion(Graph& G, GraphAttributes& GA) {
 
 				//insert new node
 				node n = G.newNode();
+				GA.width(n) = 1;
+				GA.height(n) = 1;
+				GA.fillColor(n) = Color::Name::Black;
 				GA.x(n) = p.m_x;
 				GA.y(n) = p.m_y;
 
@@ -335,8 +332,8 @@ double BendCriterion(Graph& G, GraphAttributes& GA) {
 	double m = G.edges.size();
 
 	/*
-	 * Maybe get this out of this function, because this is not the only criterion that uses bendpromotion
-	 */
+	* Maybe get this out of this function, because this is not the only criterion that uses bendpromotion
+	*/
 	BendPromotion(G, GA);
 
 	// amount of edges after bend promotion
@@ -414,19 +411,49 @@ double EdgeOrthogonalityCriterion(Graph& G, GraphAttributes& GA) {
  * GCD of the set of vertical and horizontal (pixel) differences between all geometrically adjacent nodes.
  */
 double NodeOrthogonalityCriterion(Graph& G, GraphAttributes& GA) {
+	List<int> differences;
+	List<int>::iterator it;
+
+	for (node n : G.nodes) {
+		for (node m : G.nodes) {
+			if (n != m) {
+				if (GA.x(n) == GA.x(m)) {
+					int dif = abs(GA.y(n) - GA.y(m));
+					if (dif != 0)
+						differences.pushBack(dif);
+				}
+				else if (GA.y(n) == GA.y(m)) {
+					int dif = abs(GA.x(n) - GA.x(m));
+					if (dif != 0)
+						differences.pushBack(dif);
+				}					
+			}				
+		}				
+	}
+
+	it = differences.get(0);
+	int gcdResult = *it;
+	for (int i = 1; i<G.nodes.size(); i++) {
+		it = differences.get(i);
+		gcdResult = Math::gcd(gcdResult, *it);
+	}
+
 	double width = 0, height = 0;
 	for (node n : G.nodes) {
-		double nodeWidth = GA.x(n) / (2 * NODE_WIDTH);
-		double nodeHeight = GA.y(n) / (2 * NODE_HEIGHT);
+
+		double nodeWidth = (GA.x(n) + (NODE_WIDTH /2)) / (gcdResult);
+		double nodeHeight = (GA.y(n) + (NODE_HEIGHT /2)) / (gcdResult);
 
 		if (nodeWidth > width)
 			width = nodeWidth;
 
 		if (nodeHeight > height)
-			height = nodeHeight;
+			height = nodeHeight;	
 	}
 
-	double A = (1 + width)*(1 + height);
+	cout << "width: " << width << endl;
+	cout << "height: " << height << endl;
+	double A = (width)*(height);
 	double Nno = G.nodes.size() / A;
 
 	return Nno;
@@ -484,6 +511,13 @@ void CreateGraph(Graph& G, GraphAttributes& GA) {
 void SetGraphLayout(Graph& G, GraphAttributes& GA) {
 	GA.setAllHeight(NODE_HEIGHT);
 	GA.setAllWidth(NODE_WIDTH);
+	for (edge e : G.edges) {
+		GA.strokeWidth(e) = STROKEWIDTH;
+	}
+
+	for (node n : G.nodes) {
+		GA.strokeWidth(n) = STROKEWIDTH;
+	}
 }
 
 // create testGraph to test criteria imlementations
@@ -540,10 +574,25 @@ void CreateGraphTwo(Graph& graph, GraphAttributes& GA) {
 	edge FamiliesToParents = graph.newEdge(Families, Parents);
 	edge HomeworkToStudents = graph.newEdge(Homework, Students);
 	edge ReportsToStudents = graph.newEdge(Reports, Students);	
+}
 
-	for (edge e : graph.edges) {// set default edge color and type
-		GA.arrowType(e) = ogdf::EdgeArrow::Last;
-		GA.strokeType(e) = ogdf::StrokeType::Solid;
-		GA.strokeColor(e) = Color("#bababa");
+void addRelations(Graph& G, GraphAttributes& GA) {
+	List<edge> originalEdges;
+	G.allEdges(originalEdges);
+
+	for (edge& e : originalEdges) {
+		node s = e->source();
+		node t = e->target();
+
+		node R = G.newNode();
+
+		G.newEdge(s, R);
+		G.newEdge(R, t);
+
+		GA.shape(R) = Shape::Rhomb;
+
+		G.delEdge(e);
 	}
 }
+
+
