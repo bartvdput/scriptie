@@ -62,6 +62,8 @@ int ERLayoutAlgorithm(Graph&, GraphAttributes&);
 int getBiconnectedComponents(Graph&);
 void CreateGraphFromJson(Graph&, GraphAttributes&, string);
 void FindImportantNodes(Graph&, GraphAttributes&);
+void findSimplePaths(Graph&, GraphAttributes&, node, node, int);
+void DFSUtil(Graph&, GraphAttributes&, node, node, int, bool[], int[], int&);
 
 const double NODE_WIDTH = 20.0;
 const double NODE_HEIGHT = 20.0;
@@ -76,11 +78,13 @@ int main() {
 	string file = "entities-big_system.json";
 	//cout << "Enter file name to read in: " << endl;	
 	//cin >> file;
-	CreateGraphFromJson(G, GA, file);
-	//CreateGraphTwo(G, GA);
+	//CreateGraphFromJson(G, GA, file);
+	CreateGraphTwo(G, GA);
 
 	// set some layout properties
 	SetGraphLayout(G, GA);
+
+	FindImportantNodes(G, GA);
 
 	// calculate layout and return number of crossings
 	int CROSSINGS = ERLayoutAlgorithm(G, GA);
@@ -186,6 +190,8 @@ void FindImportantNodes(Graph& G, GraphAttributes& GA) {
 	NodeArray<double> pageRank = NodeArray<double>(G);
 	NodeArray<double>::iterator it;
 
+	List<node> highRanks;
+
 	BasicPageRank pr;
 	pr.call(G, edgeWeight, pageRank);
 
@@ -194,12 +200,20 @@ void FindImportantNodes(Graph& G, GraphAttributes& GA) {
 		node n = it.key();
 		if (rank > 0.5) {
 			GA.fillColor(n) = Color::Name::Blue;
+			highRanks.pushFront(n);
 		}
 		else if (rank > 0.2) {
 			GA.fillColor(n) = Color::Name::Lightblue;
 		}
 		cout << GA.label(it.key()) << ": " << it.value() << endl;
 	}
+
+	node n1 = highRanks.popBackRet();
+	node n2 = highRanks.popBackRet();
+
+	cout << endl << "s: " << GA.label(n1) << "   t: " << GA.label(n2) << endl << endl;
+
+	findSimplePaths(G, GA, n1, n2, G.nodes.size());
 }
 
 int ERLayoutAlgorithm(Graph& G, GraphAttributes& GA) {
@@ -229,7 +243,6 @@ int ERLayoutAlgorithm(Graph& G, GraphAttributes& GA) {
 }
 
 void CriteriaTesting(Graph& G, GraphAttributes& GA, int CROSSINGS) {
-	// test criteria
 	double Nno_nodes = NodeOrthogonalityCriterion(G, GA);
 	double Nb = BendCriterion(G, GA);
 	double Nc = CrossingCriterion(G, GA, CROSSINGS);
@@ -386,14 +399,12 @@ double EdgeOrthogonalityCriterion(Graph& G, GraphAttributes& GA) {
 
 /*
  * calculate node orthogonality criterion
- *
- * TODO: calculate value '2 * NODE_SIZE' from: 
- * GCD of the set of vertical and horizontal (pixel) differences between all geometrically adjacent nodes.
  */
 double NodeOrthogonalityCriterion(Graph& G, GraphAttributes& GA) {
 	List<int> differences;
 	List<int>::iterator it;
 
+	// find all distances between nodes
 	for (node n : G.nodes) {
 		for (node m : G.nodes) {
 			if (n != m) {
@@ -411,6 +422,7 @@ double NodeOrthogonalityCriterion(Graph& G, GraphAttributes& GA) {
 		}				
 	}
 
+	// use distances to find gcd of distance between nodes
 	it = differences.get(0);
 	int gcdResult = *it;
 	for (int i = 1; i<G.nodes.size(); i++) {
@@ -420,6 +432,7 @@ double NodeOrthogonalityCriterion(Graph& G, GraphAttributes& GA) {
 
 	cout << "gcdResult: " << gcdResult << endl;
 
+	// find 'grid' sizes
 	double width = 0, height = 0;
 	for (node n : G.nodes) {
 
@@ -433,23 +446,13 @@ double NodeOrthogonalityCriterion(Graph& G, GraphAttributes& GA) {
 			height = nodeHeight;	
 	}
 
+	// calculate actual criterion value
 	cout << "width: " << width << endl;
 	cout << "height: " << height << endl;
 	double A = (width)*(height);
 	double Nno = G.nodes.size() / A;
 
 	return Nno;
-}
-
-double AngleCriterion(Graph& G, GraphAttributes& GA) {
-	double maxAngle = 0.0;
-	List<edge> edges;
-	for (node n : G.nodes) {
-		maxAngle = 360 / n->degree();
-		n->adjEdges(edges);
-	}
-
-	return maxAngle;
 }
 
 // create testGraph to test criteria imlementations
@@ -499,6 +502,9 @@ void SetGraphLayout(Graph& G, GraphAttributes& GA) {
 
 	for (node n : G.nodes) {
 		GA.strokeWidth(n) = STROKEWIDTH;
+		// Temporary
+		int index = n->index();
+		GA.label(n) = std::to_string(index);
 	}
 }
 
@@ -576,5 +582,62 @@ void addRelations(Graph& G, GraphAttributes& GA) {
 		G.delEdge(e);
 	}
 }
+
+/*
+ * find all simple paths between two nodes
+ */
+void findSimplePaths(Graph& G, GraphAttributes& GA, node n, node t, int graphSize) {
+	// keep track of visited nodes
+	bool *visited = new bool[graphSize];
+
+	// keep track of current path
+	int *path = new int[graphSize];
+	int pathIndex = 0;
+	
+	// initialize all nodes as NOT visited
+	for (int i = 0; i < graphSize; i++)
+		visited[i] = false;
+
+	int s = n->index();
+
+	// call helper function
+	DFSUtil(G, GA, n, t, s, visited, path, pathIndex);
+}
+
+/*
+ * helper function for finding all simple paths
+ */
+void DFSUtil(Graph& G, GraphAttributes& GA, node n, node t, int s, bool visited[], int path[], int &pathIndex) {
+	// set node to visited and add node to path
+	visited[s] = true;
+	path[pathIndex] = s;
+	pathIndex++;
+
+	List<edge> adj;
+	n->adjEdges(adj);
+	node m;
+
+	// check with all adjacent nodes if it is the target node, else recursively call the helper function on an adjacent node
+	for (edge e : adj) {
+		if (e->target() != n)
+			m = e->target();
+		else m = e->source();
+
+		int index = m->index();
+
+		if (m == t) {
+			for (int i = 0; i < pathIndex; i++)
+				cout << path[i] << " ";
+			cout << endl;
+		} else if (!visited[index]) {
+			DFSUtil(G, GA, m, t, index, visited, path, pathIndex);
+		}
+	}
+
+	// remove current node from path and set to not visited
+	pathIndex--;
+	visited[s] = false;
+}
+
 
 
