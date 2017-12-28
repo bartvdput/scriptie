@@ -1,6 +1,3 @@
-// CheckCriteria.cpp : Defines the entry point for the console application.
-//
-
 #include <iostream>
 #include <fstream>
 #include <utility>
@@ -81,20 +78,6 @@ int main() {
 	//cin >> file;
 	CreateGraphFromJson(G, GA, file);
 	//CreateGraphTwo(G, GA);
-	//CreateGraph(G, GA);
-
-	// List all nodes
-	for (node n : G.nodes) {
-		cout << "FINAL NODES: " << GA.label(n) << endl;
-	}
-
-	// List all edges
-	cout << endl << endl;
-	for (edge e : G.edges) {
-		cout << "FINAL EDGES: " << GA.label(e->source()) << " -- " << GA.label(e->target()) << endl;
-	}
-
-	//FindImportantNodes(G, GA);
 
 	// set some layout properties
 	SetGraphLayout(G, GA);
@@ -111,8 +94,6 @@ int main() {
 
 	// calculate criteria value
 	CriteriaTesting(G, GA, CROSSINGS);
-
-	//GraphIO::drawSVG(GA, "C:\\Users\\Bart\\Desktop\\ERD2.svg", settings);
 
 	return 0;
 }
@@ -252,16 +233,15 @@ void CriteriaTesting(Graph& G, GraphAttributes& GA, int CROSSINGS) {
 	double Nno_nodes = NodeOrthogonalityCriterion(G, GA);
 	double Nb = BendCriterion(G, GA);
 	double Nc = CrossingCriterion(G, GA, CROSSINGS);
-	double Nno_nodes_bends = NodeOrthogonalityCriterion(G, GA);
+	//double Nno_nodes_bends = NodeOrthogonalityCriterion(G, GA);
 	double Neo = EdgeOrthogonalityCriterion(G, GA);
 	
-	cout << endl << "HALLO?" << endl << endl;
 
 	cout << "Criteria" << endl << endl;
 	cout << "Crossings (N_c): " << Nc << endl;
 	cout << "Bends (N_b): " << Nb << endl;
 	cout << "Node Ortho (N_no): " << Nno_nodes << endl;
-	cout << "Node & Bend Ortho (N_no): " << Nno_nodes_bends << endl;
+	//cout << "Node & Bend Ortho (N_no): " << Nno_nodes_bends << endl;
 	cout << "Edge Ortho (N_eo): " << Neo << endl;
 	cout << endl << endl;
 }
@@ -437,6 +417,8 @@ double NodeOrthogonalityCriterion(Graph& G, GraphAttributes& GA) {
 		it = differences.get(i);
 		gcdResult = Math::gcd(gcdResult, *it);
 	}
+
+	cout << "gcdResult: " << gcdResult << endl;
 
 	double width = 0, height = 0;
 	for (node n : G.nodes) {
