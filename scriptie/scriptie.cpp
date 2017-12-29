@@ -63,12 +63,15 @@ int getBiconnectedComponents(Graph&);
 void CreateGraphFromJson(Graph&, GraphAttributes&, string);
 void FindImportantNodes(Graph&, GraphAttributes&);
 void findSimplePaths(Graph&, GraphAttributes&, node, node, int);
-void DFSUtil(Graph&, GraphAttributes&, node, node, int, bool[], int[], int&);
+void DFSUtil(Graph&, GraphAttributes&, node, node, int, bool[], int&, node[]);
 
 const double NODE_WIDTH = 20.0;
 const double NODE_HEIGHT = 20.0;
 const float STROKEWIDTH = 0.2f;
 const double PI = 3.141592653589793238463;
+const Color MAJOR_NODES = Color::Name::Blue;
+const Color SECONDARY_NODES = Color::Name::Lightblue;
+const Color MINOR_NODES = Color::Name::White;
 
 int main() {
 	Graph G;
@@ -78,8 +81,8 @@ int main() {
 	string file = "entities-big_system.json";
 	//cout << "Enter file name to read in: " << endl;	
 	//cin >> file;
-	//CreateGraphFromJson(G, GA, file);
-	CreateGraphTwo(G, GA);
+	CreateGraphFromJson(G, GA, file);
+	//CreateGraphTwo(G, GA);
 
 	// set some layout properties
 	SetGraphLayout(G, GA);
@@ -199,11 +202,11 @@ void FindImportantNodes(Graph& G, GraphAttributes& GA) {
 		double rank = it.value();
 		node n = it.key();
 		if (rank > 0.5) {
-			GA.fillColor(n) = Color::Name::Blue;
+			GA.fillColor(n) = MAJOR_NODES;
 			highRanks.pushFront(n);
 		}
 		else if (rank > 0.2) {
-			GA.fillColor(n) = Color::Name::Lightblue;
+			GA.fillColor(n) = SECONDARY_NODES;
 		}
 		cout << GA.label(it.key()) << ": " << it.value() << endl;
 	}
@@ -592,25 +595,28 @@ void findSimplePaths(Graph& G, GraphAttributes& GA, node n, node t, int graphSiz
 
 	// keep track of current path
 	int *path = new int[graphSize];
+	node *nodePath = new node[graphSize];
 	int pathIndex = 0;
 	
 	// initialize all nodes as NOT visited
 	for (int i = 0; i < graphSize; i++)
 		visited[i] = false;
 
-	int s = n->index();
+	int index = n->index();
 
 	// call helper function
-	DFSUtil(G, GA, n, t, s, visited, path, pathIndex);
+	DFSUtil(G, GA, n, t, index, visited, pathIndex, nodePath);
+
+	cout << endl;
 }
 
 /*
  * helper function for finding all simple paths
  */
-void DFSUtil(Graph& G, GraphAttributes& GA, node n, node t, int s, bool visited[], int path[], int &pathIndex) {
+void DFSUtil(Graph& G, GraphAttributes& GA, node n, node t, int index, bool visited[], int &pathIndex, node nodePath[]) {
 	// set node to visited and add node to path
-	visited[s] = true;
-	path[pathIndex] = s;
+	visited[index] = true;
+	nodePath[pathIndex] = n;
 	pathIndex++;
 
 	List<edge> adj;
@@ -623,20 +629,21 @@ void DFSUtil(Graph& G, GraphAttributes& GA, node n, node t, int s, bool visited[
 			m = e->target();
 		else m = e->source();
 
-		int index = m->index();
+		int newIndex = m->index();
 
 		if (m == t) {
-			for (int i = 0; i < pathIndex; i++)
-				cout << path[i] << " ";
+			for (int i = 0; i < pathIndex; i++) {
+				cout << GA.label(nodePath[i]) << " ";
+			}				
 			cout << endl;
-		} else if (!visited[index]) {
-			DFSUtil(G, GA, m, t, index, visited, path, pathIndex);
+		} else if (!visited[newIndex] && !(GA.fillColor(m) == MINOR_NODES)){
+			DFSUtil(G, GA, m, t, newIndex, visited, pathIndex, nodePath);
 		}
 	}
 
 	// remove current node from path and set to not visited
 	pathIndex--;
-	visited[s] = false;
+	visited[index] = false;
 }
 
 
