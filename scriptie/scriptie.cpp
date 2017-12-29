@@ -63,7 +63,7 @@ int getBiconnectedComponents(Graph&);
 void CreateGraphFromJson(Graph&, GraphAttributes&, string);
 void FindImportantNodes(Graph&, GraphAttributes&);
 void findSimplePaths(Graph&, GraphAttributes&, node, node, int);
-void DFSUtil(Graph&, GraphAttributes&, node, node, int, bool[], int&, node[]);
+void DFSUtil(Graph&, GraphAttributes&, node, node, int, bool[], int&, node[], Graph&, bool[], bool[]);
 
 const double NODE_WIDTH = 20.0;
 const double NODE_HEIGHT = 20.0;
@@ -589,31 +589,43 @@ void addRelations(Graph& G, GraphAttributes& GA) {
 /*
  * find all simple paths between two nodes
  */
-void findSimplePaths(Graph& G, GraphAttributes& GA, node n, node t, int graphSize) {
+void findSimplePaths(Graph& G, GraphAttributes& GA, node n, node t, int nodeCount) {
+	Graph subGraph;
+	GraphAttributes subGA(subGraph, GraphAttributes::nodeType | GraphAttributes::nodeGraphics | GraphAttributes::edgeGraphics | GraphAttributes::nodeLabel | GraphAttributes::nodeStyle | GraphAttributes::edgeType | GraphAttributes::edgeArrow | GraphAttributes::edgeStyle | GraphAttributes::edgeLabel);
+	
 	// keep track of visited nodes
-	bool *visited = new bool[graphSize];
+	bool *visited = new bool[nodeCount];
+	bool *nodeInNewGraph = new bool[nodeCount];
 
 	// keep track of current path
-	int *path = new int[graphSize];
-	node *nodePath = new node[graphSize];
+	int *path = new int[nodeCount];
+	node *nodePath = new node[nodeCount];
 	int pathIndex = 0;
 	
-	// initialize all nodes as NOT visited
-	for (int i = 0; i < graphSize; i++)
+	// initialize all nodes as NOT visited AND NOT in new graph
+	for (int i = 0; i < nodeCount; i++) {
 		visited[i] = false;
+		nodeInNewGraph[i] = false;
+	}
 
 	int index = n->index();
 
 	// call helper function
-	DFSUtil(G, GA, n, t, index, visited, pathIndex, nodePath);
+	DFSUtil(G, GA, n, t, index, visited, pathIndex, nodePath, subGraph, nodeInNewGraph);
 
 	cout << endl;
+
+	ERLayoutAlgorithm(subGraph, subGA);
+	// draw graph to svg file
+	GraphIO::SVGSettings settings;
+	settings.fontSize(2);
+	GraphIO::drawSVG(subGA, "C:\\Users\\Bart\\Desktop\\ERD2.svg", settings);
 }
 
 /*
  * helper function for finding all simple paths
  */
-void DFSUtil(Graph& G, GraphAttributes& GA, node n, node t, int index, bool visited[], int &pathIndex, node nodePath[]) {
+void DFSUtil(Graph& G, GraphAttributes& GA, node n, node t, int index, bool visited[], int &pathIndex, node nodePath[], Graph& subGraph, bool nodeInNewGraph[]) {
 	// set node to visited and add node to path
 	visited[index] = true;
 	nodePath[pathIndex] = n;
@@ -632,12 +644,15 @@ void DFSUtil(Graph& G, GraphAttributes& GA, node n, node t, int index, bool visi
 		int newIndex = m->index();
 
 		if (m == t) {
-			for (int i = 0; i < pathIndex; i++) {
-				cout << GA.label(nodePath[i]) << " ";
+			for (int i = 0; i < pathIndex; i++) {				
+				int tempIndex = nodePath[i]->index();
+				if (!nodeInNewGraph[tempIndex]) {
+					node newNode = subGraph.newNode();
+					nodeInNewGraph[tempIndex] = true;
+				}				
 			}				
-			cout << endl;
 		} else if (!visited[newIndex] && !(GA.fillColor(m) == MINOR_NODES)){
-			DFSUtil(G, GA, m, t, newIndex, visited, pathIndex, nodePath);
+			DFSUtil(G, GA, m, t, newIndex, visited, pathIndex, nodePath, subGraph, nodeInNewGraph);
 		}
 	}
 
