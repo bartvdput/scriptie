@@ -63,7 +63,8 @@ int getBiconnectedComponents(Graph&);
 void CreateGraphFromJson(Graph&, GraphAttributes&, string);
 void FindImportantNodes(Graph&, GraphAttributes&);
 void findSimplePaths(Graph&, GraphAttributes&, node, node, int);
-void DFSUtil(Graph&, GraphAttributes&, node, node, int, bool[], int&, node[], Graph&, bool[], bool[]);
+void DFSUtil(Graph&, GraphAttributes&, node, node, int, bool[], int&, node[], Graph&, bool[]);
+void GenerateSubgraph(Graph&, GraphAttributes&, int);
 
 const double NODE_WIDTH = 20.0;
 const double NODE_HEIGHT = 20.0;
@@ -88,6 +89,8 @@ int main() {
 	SetGraphLayout(G, GA);
 
 	FindImportantNodes(G, GA);
+
+	GenerateSubgraph(G, GA, G.nodes.size());
 
 	// calculate layout and return number of crossings
 	int CROSSINGS = ERLayoutAlgorithm(G, GA);
@@ -659,6 +662,33 @@ void DFSUtil(Graph& G, GraphAttributes& GA, node n, node t, int index, bool visi
 	// remove current node from path and set to not visited
 	pathIndex--;
 	visited[index] = false;
+}
+
+void GenerateSubGraph(Graph& G, GraphAttributes& GA, int graphSize) {
+	Graph subGraph;
+	GraphAttributes subGA(subGraph, GraphAttributes::nodeType | GraphAttributes::nodeGraphics | GraphAttributes::edgeGraphics | GraphAttributes::nodeLabel | GraphAttributes::nodeStyle | GraphAttributes::edgeType | GraphAttributes::edgeArrow | GraphAttributes::edgeStyle | GraphAttributes::edgeLabel);
+	
+	node *nodes = new node[graphSize];
+
+	for (node n : G.nodes) {
+		if (GA.fillColor(n) == MAJOR_NODES || GA.fillColor(n) == SECONDARY_NODES) {
+			node m = subGraph.newNode();
+			subGA.label(m) = GA.label(n);
+			subGA.fillColor(m) = GA.fillColor(n);
+			nodes[n->index()] = m;
+		}
+	}
+
+	for (edge e : G.edges) {
+		node s = e->source();
+		node t = e->target();
+		if ((GA.fillColor(s) == MAJOR_NODES || GA.fillColor(s) == SECONDARY_NODES) && (GA.fillColor(t) == MAJOR_NODES || GA.fillColor(t) == SECONDARY_NODES)) {
+			int sIndex = s->index();
+			int tIndex = t->index();
+			edge w = subGraph.newEdge(nodes[sIndex], nodes[tIndex]);
+		}
+	}
+
 }
 
 
