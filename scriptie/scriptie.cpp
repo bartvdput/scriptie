@@ -64,7 +64,7 @@ void CreateGraphFromJson(Graph&, GraphAttributes&, string);
 void FindImportantNodes(Graph&, GraphAttributes&);
 void findSimplePaths(Graph&, GraphAttributes&, node, node, int);
 void DFSUtil(Graph&, GraphAttributes&, node, node, int, bool[], int&, node[], Graph&, bool[]);
-void GenerateSubgraph(Graph&, GraphAttributes&, int);
+void GenerateSubgraph(Graph&, GraphAttributes&, int, Graph&, GraphAttributes&);
 
 const double NODE_WIDTH = 20.0;
 const double NODE_HEIGHT = 20.0;
@@ -78,6 +78,12 @@ int main() {
 	Graph G;
 	GraphAttributes GA(G, GraphAttributes::nodeType | GraphAttributes::nodeGraphics | GraphAttributes::edgeGraphics | GraphAttributes::nodeLabel | GraphAttributes::nodeStyle | GraphAttributes::edgeType | GraphAttributes::edgeArrow | GraphAttributes::edgeStyle | GraphAttributes::edgeLabel);
 	
+	Graph subGraph;
+	GraphAttributes subGA(subGraph, GraphAttributes::nodeType | GraphAttributes::nodeGraphics | GraphAttributes::edgeGraphics | GraphAttributes::nodeLabel | GraphAttributes::nodeStyle | GraphAttributes::edgeType | GraphAttributes::edgeArrow | GraphAttributes::edgeStyle | GraphAttributes::edgeLabel);
+
+	GraphIO::SVGSettings settings;
+	settings.fontSize(2);
+
 	// read file
 	string file = "entities-big_system.json";
 	//cout << "Enter file name to read in: " << endl;	
@@ -85,19 +91,23 @@ int main() {
 	CreateGraphFromJson(G, GA, file);
 	//CreateGraphTwo(G, GA);
 
+	int maxIndex = 0;
+	for (node n : G.nodes) {
+		if (n->index() > maxIndex)
+			maxIndex = n->index();
+	}
+
 	// set some layout properties
 	SetGraphLayout(G, GA);
+	SetGraphLayout(subGraph, subGA);
 
 	FindImportantNodes(G, GA);
-
-	GenerateSubgraph(G, GA, G.nodes.size());
+	GenerateSubgraph(G, GA, maxIndex, subGraph, subGA);
 
 	// calculate layout and return number of crossings
 	int CROSSINGS = ERLayoutAlgorithm(G, GA);
 
 	// draw graph to svg file
-	GraphIO::SVGSettings settings;
-	settings.fontSize(2);
 	GraphIO::drawSVG(GA, "C:\\Users\\Bart\\Desktop\\ERD.svg", settings);
 
 	cout << "nr of crossings: " << CROSSINGS << endl;
@@ -105,6 +115,19 @@ int main() {
 	// calculate criteria value
 	CriteriaTesting(G, GA, CROSSINGS);
 
+	cout << "----------------------------" << endl << endl << endl;
+
+	// calculate layout and return number of crossings
+	int CROSSINGS_subgraph = ERLayoutAlgorithm(subGraph, subGA);
+
+	// draw graph to svg file
+	GraphIO::drawSVG(subGA, "C:\\Users\\Bart\\Desktop\\ERD2.svg", settings);
+
+	cout << "nr of crossings: " << CROSSINGS << endl;
+
+	// calculate criteria value
+	CriteriaTesting(subGraph, subGA, CROSSINGS_subgraph);
+	
 	return 0;
 }
 
@@ -191,12 +214,13 @@ void CreateGraphFromJson(Graph& G, GraphAttributes& GA, string file) {
 	}	
 }
 
+/*
+ * pagerank algorithm to find major/minor nodes
+ */
 void FindImportantNodes(Graph& G, GraphAttributes& GA) {
 	EdgeArray<double> edgeWeight = EdgeArray<double>(G);
 	NodeArray<double> pageRank = NodeArray<double>(G);
 	NodeArray<double>::iterator it;
-
-	List<node> highRanks;
 
 	BasicPageRank pr;
 	pr.call(G, edgeWeight, pageRank);
@@ -206,22 +230,17 @@ void FindImportantNodes(Graph& G, GraphAttributes& GA) {
 		node n = it.key();
 		if (rank > 0.5) {
 			GA.fillColor(n) = MAJOR_NODES;
-			highRanks.pushFront(n);
 		}
 		else if (rank > 0.2) {
 			GA.fillColor(n) = SECONDARY_NODES;
 		}
-		cout << GA.label(it.key()) << ": " << it.value() << endl;
+		//cout << GA.label(it.key()) << ": " << it.value() << endl;
 	}
-
-	node n1 = highRanks.popBackRet();
-	node n2 = highRanks.popBackRet();
-
-	cout << endl << "s: " << GA.label(n1) << "   t: " << GA.label(n2) << endl << endl;
-
-	findSimplePaths(G, GA, n1, n2, G.nodes.size());
 }
 
+/*
+ * the actual layout algorithm
+ */
 int ERLayoutAlgorithm(Graph& G, GraphAttributes& GA) {
 	cout << "Node count: " << G.nodes.size() << endl;
 	int CROSSINGS = 0;
@@ -508,9 +527,6 @@ void SetGraphLayout(Graph& G, GraphAttributes& GA) {
 
 	for (node n : G.nodes) {
 		GA.strokeWidth(n) = STROKEWIDTH;
-		// Temporary
-		int index = n->index();
-		GA.label(n) = std::to_string(index);
 	}
 }
 
@@ -664,10 +680,7 @@ void DFSUtil(Graph& G, GraphAttributes& GA, node n, node t, int index, bool visi
 	visited[index] = false;
 }
 
-void GenerateSubGraph(Graph& G, GraphAttributes& GA, int graphSize) {
-	Graph subGraph;
-	GraphAttributes subGA(subGraph, GraphAttributes::nodeType | GraphAttributes::nodeGraphics | GraphAttributes::edgeGraphics | GraphAttributes::nodeLabel | GraphAttributes::nodeStyle | GraphAttributes::edgeType | GraphAttributes::edgeArrow | GraphAttributes::edgeStyle | GraphAttributes::edgeLabel);
-	
+void GenerateSubgraph(Graph& G, GraphAttributes& GA, int graphSize, Graph& subGraph, GraphAttributes& subGA) {
 	node *nodes = new node[graphSize];
 
 	for (node n : G.nodes) {
@@ -685,10 +698,13 @@ void GenerateSubGraph(Graph& G, GraphAttributes& GA, int graphSize) {
 		if ((GA.fillColor(s) == MAJOR_NODES || GA.fillColor(s) == SECONDARY_NODES) && (GA.fillColor(t) == MAJOR_NODES || GA.fillColor(t) == SECONDARY_NODES)) {
 			int sIndex = s->index();
 			int tIndex = t->index();
-			edge w = subGraph.newEdge(nodes[sIndex], nodes[tIndex]);
+			if (sIndex < graphSize && tIndex < graphSize) {
+				edge w = subGraph.newEdge(nodes[sIndex], nodes[tIndex]);
+			} else {
+				cout << "wot? " << sIndex << " " << tIndex << endl;
+			}			
 		}
 	}
-
 }
 
 
