@@ -52,8 +52,8 @@ void CreateGraphTwo(Graph&, GraphAttributes&);
 void BendPromotion(Graph&, GraphAttributes&);
 void SetGraphLayout(Graph&, GraphAttributes&);
 double BendCriterion(Graph&, GraphAttributes&);
-double CrossingCriterion(Graph&, GraphAttributes&, double);
-double AngleCriterion(Graph&, GraphAttributes&);
+double CrossingCriterion(Graph&, double);
+double UniformEdgeCriterion(Graph&, GraphAttributes&);
 double NodeOrthogonalityCriterion(Graph&, GraphAttributes&);
 double EdgeOrthogonalityCriterion(Graph&, GraphAttributes&);
 void CriteriaTesting(Graph&, GraphAttributes&, int);
@@ -73,6 +73,7 @@ const double PI = 3.141592653589793238463;
 const Color MAJOR_NODES = Color::Name::Blue;
 const Color SECONDARY_NODES = Color::Name::Lightblue;
 const Color MINOR_NODES = Color::Name::White;
+const Color BEND_COLOR = Color::Name::Black;
 
 int main() {
 	Graph G;
@@ -123,10 +124,12 @@ int main() {
 	// draw graph to svg file
 	GraphIO::drawSVG(subGA, "C:\\Users\\Bart\\Desktop\\ERD2.svg", settings);
 
-	cout << "nr of crossings: " << CROSSINGS << endl;
+	cout << "nr of crossings: " << CROSSINGS_subgraph << endl;
 
 	// calculate criteria value
 	CriteriaTesting(subGraph, subGA, CROSSINGS_subgraph);
+
+	
 	
 	return 0;
 }
@@ -270,8 +273,7 @@ int ERLayoutAlgorithm(Graph& G, GraphAttributes& GA) {
 void CriteriaTesting(Graph& G, GraphAttributes& GA, int CROSSINGS) {
 	double Nno_nodes = NodeOrthogonalityCriterion(G, GA);
 	double Nb = BendCriterion(G, GA);
-	double Nc = CrossingCriterion(G, GA, CROSSINGS);
-	//double Nno_nodes_bends = NodeOrthogonalityCriterion(G, GA);
+	double Nc = CrossingCriterion(G, CROSSINGS);
 	double Neo = EdgeOrthogonalityCriterion(G, GA);
 	
 
@@ -279,7 +281,6 @@ void CriteriaTesting(Graph& G, GraphAttributes& GA, int CROSSINGS) {
 	cout << "Crossings (N_c): " << Nc << endl;
 	cout << "Bends (N_b): " << Nb << endl;
 	cout << "Node Ortho (N_no): " << Nno_nodes << endl;
-	//cout << "Node & Bend Ortho (N_no): " << Nno_nodes_bends << endl;
 	cout << "Edge Ortho (N_eo): " << Neo << endl;
 	cout << endl << endl;
 }
@@ -314,31 +315,28 @@ void BendPromotion(Graph& G, GraphAttributes& GA) {
 		node t = e->target();
 
 		//check if an edge has bendpoints
-		if (!bends_e.empty()) {
-			while (!bends_e.empty()) {
-				DPoint p = bends_e.front();
+		while (!bends_e.empty()) {
+			DPoint p = bends_e.front();
 
-				//insert new node
-				node n = G.newNode();
-				GA.width(n) = 1;
-				GA.height(n) = 1;
-				GA.fillColor(n) = Color::Name::Black;
-				GA.x(n) = p.m_x;
-				GA.y(n) = p.m_y;
+			//insert new node
+			node n = G.newNode();
+			GA.width(n) = 1;
+			GA.height(n) = 1;
+			GA.fillColor(n) = Color::Name::Black;
+			GA.x(n) = p.m_x;
+			GA.y(n) = p.m_y;
 
-				edge e_ = G.newEdge(s, n);
-				GA.arrowType(e_) = ogdf::EdgeArrow::None;
-				GA.strokeColor(e_) = Color("#bababa");
-				s = n;
-
-				bends_e.popFront();
-			}
-			edge e_ = G.newEdge(s, t);
-			GA.arrowType(e_) = ogdf::EdgeArrow::None;
+			edge e_ = G.newEdge(s, n);
+			GA.arrowType(e_) = ogdf::EdgeArrow::None; 
 			GA.strokeColor(e_) = Color("#bababa");
+			s = n;
 
-			G.delEdge(e);
+			bends_e.popFront();
 		}
+		edge e_ = G.newEdge(s, t);
+		GA.arrowType(e_) = ogdf::EdgeArrow::None;
+		GA.strokeColor(e_) = Color("#bababa");
+		G.delEdge(e);
 	}
 }
 
@@ -349,27 +347,23 @@ double BendCriterion(Graph& G, GraphAttributes& GA) {
 	// original amount of edges
 	double m = G.edges.size();
 
-	/*
-	* Maybe get this out of this function, because this is not the only criterion that uses bendpromotion
-	*/
 	BendPromotion(G, GA);
 
 	// amount of edges after bend promotion
-	double m2 = G.edges.size();
+	double m2 = G.edges.size() - (m*2); // - (m*2) because bend points are created where edges connect to nodes.
+	double b = (m2 - m);
+	double b_avg = b / m2;
 
-	double b_avg = (m2 - m) / m2;
-	double Nb = 1 - b_avg;
-
-	return Nb;
+	return 1 - b_avg;
 }
 
 /*
  * calculate crossing criterion
  */
-double CrossingCriterion(Graph& G, GraphAttributes& GA, double c) {
+double CrossingCriterion(Graph& G, double c) {
 	// calculate all (theoretically) possible edge crossings
-	double m2 = G.edges.size();
-	double c_all = (m2 * (m2 - 1)) / 2;
+	double m = G.edges.size();
+	double c_all = (m * (m - 1)) / 2;
 
 	// calculate impossible edge crossings
 	double c_impossible = 0;
@@ -388,7 +382,7 @@ double CrossingCriterion(Graph& G, GraphAttributes& GA, double c) {
 	double Nc = 1;
 	if (c_max > 0) {
 		Nc -= (c / c_max);
-	}
+	} else Nc = 0;
 
 	return Nc;
 }
@@ -403,23 +397,24 @@ double EdgeOrthogonalityCriterion(Graph& G, GraphAttributes& GA) {
 		node s = e->source();
 		node t = e->target();
 
-		double s_x = GA.x(s);
-		double s_y = GA.y(s);
+		if (GA.fillColor(s) == BEND_COLOR && GA.fillColor(t) == BEND_COLOR) {
+			double s_x = GA.x(s);
+			double s_y = GA.y(s);
 
-		double t_x = GA.x(t);
-		double t_y = GA.y(t);
+			double t_x = GA.x(t);
+			double t_y = GA.y(t);
 
-		double angle = abs(atan2(s_y - t_y, t_x - s_x) * 180 / PI);
-		Array<double> values = { angle, abs(90.0 - angle), abs(180.0 - angle) };
-		double *deviation = min_element(begin(values), end(values));
-		*deviation = *deviation / 45;
+			double angle = abs(atan2(s_y - t_y, t_x - s_x) * 180 / PI);
+			Array<double> values = { angle, abs(90.0 - angle), abs(180.0 - angle) };
+			double *deviation = min_element(begin(values), end(values));
+			*deviation = *deviation / 45;
 
-		sum += *deviation;
+			sum += *deviation;
+		}		
 	}
 	
-	double Neo = 1.0 - ((1.0 / G.edges.size()) * sum);
-
-	return Neo;
+	double avg = ((1.0 / G.edges.size()) * sum);
+	return  1.0 - avg;
 }
 
 /*
@@ -461,14 +456,14 @@ double NodeOrthogonalityCriterion(Graph& G, GraphAttributes& GA) {
 	double width = 0, height = 0;
 	for (node n : G.nodes) {
 
-		double nodeWidth = (GA.x(n) + (NODE_WIDTH /2)) / (gcdResult);
-		double nodeHeight = (GA.y(n) + (NODE_HEIGHT /2)) / (gcdResult);
+		double nodePosX = (GA.x(n) + (NODE_WIDTH /2)) / (gcdResult);
+		double nodePosY = (GA.y(n) + (NODE_HEIGHT /2)) / (gcdResult);
 
-		if (nodeWidth > width)
-			width = nodeWidth;
+		if (nodePosX > width)
+			width = nodePosX;
 
-		if (nodeHeight > height)
-			height = nodeHeight;	
+		if (nodePosY > height)
+			height = nodePosY;
 	}
 
 	// calculate actual criterion value
@@ -478,6 +473,10 @@ double NodeOrthogonalityCriterion(Graph& G, GraphAttributes& GA) {
 	double Nno = G.nodes.size() / A;
 
 	return Nno;
+}
+
+double UniformEdgeCriterion(Graph& G, GraphAttributes& GA) {
+	return 0;
 }
 
 // create testGraph to test criteria imlementations
