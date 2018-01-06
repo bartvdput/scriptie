@@ -65,6 +65,7 @@ void FindImportantNodes(Graph&, GraphAttributes&);
 void findSimplePaths(Graph&, GraphAttributes&, node, node, int);
 void DFSUtil(Graph&, GraphAttributes&, node, node, int, bool[], int&, node[], Graph&, bool[]);
 void GenerateSubgraph(Graph&, GraphAttributes&, int, Graph&, GraphAttributes&);
+double edgeLength(edge&, GraphAttributes&);
 
 const double NODE_WIDTH = 20.0;
 const double NODE_HEIGHT = 20.0;
@@ -271,13 +272,14 @@ int ERLayoutAlgorithm(Graph& G, GraphAttributes& GA) {
 }
 
 void CriteriaTesting(Graph& G, GraphAttributes& GA, int CROSSINGS) {
+	double Nue = UniformEdgeCriterion(G, GA);
 	double Nno_nodes = NodeOrthogonalityCriterion(G, GA);
 	double Nb = BendCriterion(G, GA);
 	double Nc = CrossingCriterion(G, CROSSINGS);
-	double Neo = EdgeOrthogonalityCriterion(G, GA);
-	
+	double Neo = EdgeOrthogonalityCriterion(G, GA);	
 
 	cout << "Criteria" << endl << endl;
+	cout << "Uniform edge lengths (N_ue): " << Nue << endl;
 	cout << "Crossings (N_c): " << Nc << endl;
 	cout << "Bends (N_b): " << Nb << endl;
 	cout << "Node Ortho (N_no): " << Nno_nodes << endl;
@@ -476,7 +478,48 @@ double NodeOrthogonalityCriterion(Graph& G, GraphAttributes& GA) {
 }
 
 double UniformEdgeCriterion(Graph& G, GraphAttributes& GA) {
-	return 0;
+	double total_length = 0;
+	for (edge e : G.edges) {
+		total_length += edgeLength(e, GA);
+	}
+	double avg_length = total_length / G.edges.size();
+
+	double total_deviation = 0;
+	for (edge e : G.edges) {
+		total_deviation += abs(edgeLength(e, GA) - avg_length);
+	}
+	double avg_deviation = total_deviation / G.edges.size();
+	
+	if (avg_deviation < avg_length)
+		return 1 - (avg_deviation / avg_length);
+	else return 0;
+}
+
+double edgeLength(edge& e, GraphAttributes& GA) {
+	double length = 0;
+
+	DPolyline bends_e = GA.bends(e);
+	DPoint s = bends_e.popFrontRet();
+	DPoint t = bends_e.popBackRet();
+
+	//check if an edge has bendpoints
+	while (!bends_e.empty()) {
+		DPoint p = bends_e.popFrontRet();
+
+		if (s.m_x == p.m_x)
+			length += abs(s.m_y - p.m_y);
+		else
+			length += abs(s.m_x - p.m_x);
+		
+		s = p;
+	}
+
+	if (s.m_x == t.m_x)
+		length += abs(s.m_y - t.m_y);
+	else
+		length += abs(s.m_x - t.m_x);
+
+	return length;
 }
 
 // create testGraph to test criteria imlementations
@@ -583,25 +626,6 @@ void CreateGraphTwo(Graph& graph, GraphAttributes& GA) {
 	edge FamiliesToParents = graph.newEdge(Families, Parents);
 	edge HomeworkToStudents = graph.newEdge(Homework, Students);
 	edge ReportsToStudents = graph.newEdge(Reports, Students);	
-}
-
-void addRelations(Graph& G, GraphAttributes& GA) {
-	List<edge> originalEdges;
-	G.allEdges(originalEdges);
-
-	for (edge& e : originalEdges) {
-		node s = e->source();
-		node t = e->target();
-
-		node R = G.newNode();
-
-		G.newEdge(s, R);
-		G.newEdge(R, t);
-
-		GA.shape(R) = Shape::Rhomb;
-
-		G.delEdge(e);
-	}
 }
 
 /*
