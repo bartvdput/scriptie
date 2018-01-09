@@ -47,7 +47,11 @@ using namespace std;
 using json = nlohmann::json;
 
 void CreateGraph(Graph&, GraphAttributes&);
-void CreateGraphTwo(Graph&, GraphAttributes&);
+void Model1(Graph&, GraphAttributes&);
+void Model2(Graph&, GraphAttributes&);
+void Model3(Graph&, GraphAttributes&);
+void Model4(Graph&, GraphAttributes&);
+void Model6(Graph&, GraphAttributes&);
 
 void BendPromotion(Graph&, GraphAttributes&);
 void SetGraphLayout(Graph&, GraphAttributes&);
@@ -67,14 +71,15 @@ void DFSUtil(Graph&, GraphAttributes&, node, node, int, bool[], int&, node[], Gr
 void GenerateSubgraph(Graph&, GraphAttributes&, int, Graph&, GraphAttributes&);
 double edgeLength(edge&, GraphAttributes&);
 
-const double NODE_WIDTH = 20.0;
-const double NODE_HEIGHT = 20.0;
+const double NODE_WIDTH = 40.0;
+const double NODE_HEIGHT = 30.0;
 const float STROKEWIDTH = 0.2f;
 const double PI = 3.141592653589793238463;
 const Color MAJOR_NODES = Color::Name::Blue;
 const Color SECONDARY_NODES = Color::Name::Lightblue;
 const Color MINOR_NODES = Color::Name::White;
 const Color BEND_COLOR = Color::Name::Black;
+const Color PINK_COLOR = Color::Name::Pink;
 
 int main() {
 	Graph G;
@@ -84,14 +89,14 @@ int main() {
 	GraphAttributes subGA(subGraph, GraphAttributes::nodeType | GraphAttributes::nodeGraphics | GraphAttributes::edgeGraphics | GraphAttributes::nodeLabel | GraphAttributes::nodeStyle | GraphAttributes::edgeType | GraphAttributes::edgeArrow | GraphAttributes::edgeStyle | GraphAttributes::edgeLabel);
 
 	GraphIO::SVGSettings settings;
-	settings.fontSize(2);
+	settings.fontSize(4);
 
 	// read file
 	string file = "entities-big_system.json";
 	//cout << "Enter file name to read in: " << endl;	
 	//cin >> file;
-	CreateGraphFromJson(G, GA, file);
-	//CreateGraphTwo(G, GA);
+	//CreateGraphFromJson(G, GA, file);
+	Model6(G, GA);
 
 	int maxIndex = 0;
 	for (node n : G.nodes) {
@@ -103,8 +108,8 @@ int main() {
 	SetGraphLayout(G, GA);
 	SetGraphLayout(subGraph, subGA);
 
-	FindImportantNodes(G, GA);
-	GenerateSubgraph(G, GA, maxIndex, subGraph, subGA);
+	//FindImportantNodes(G, GA);
+	//GenerateSubgraph(G, GA, maxIndex, subGraph, subGA);
 
 	// calculate layout and return number of crossings
 	int CROSSINGS = ERLayoutAlgorithm(G, GA);
@@ -116,6 +121,10 @@ int main() {
 
 	// calculate criteria value
 	CriteriaTesting(G, GA, CROSSINGS);
+
+	/*
+	// draw graph to svg file
+	GraphIO::drawSVG(GA, "C:\\Users\\Bart\\Desktop\\ERD3.svg", settings);
 
 	cout << "----------------------------" << endl << endl << endl;
 
@@ -129,8 +138,7 @@ int main() {
 
 	// calculate criteria value
 	CriteriaTesting(subGraph, subGA, CROSSINGS_subgraph);
-
-	
+	*/	
 	
 	return 0;
 }
@@ -253,6 +261,7 @@ int ERLayoutAlgorithm(Graph& G, GraphAttributes& GA) {
 	SubgraphPlanarizer *crossMin = new SubgraphPlanarizer;
 
 	PlanarSubgraphFast<int> *ps = new PlanarSubgraphFast<int>;
+	//PlanarSubgraphBoyerMyrvold *ps = new PlanarSubgraphBoyerMyrvold;
 	VariableEmbeddingInserter *ves = new VariableEmbeddingInserter;
 
 	crossMin->setSubgraph(ps);
@@ -324,7 +333,7 @@ void BendPromotion(Graph& G, GraphAttributes& GA) {
 			node n = G.newNode();
 			GA.width(n) = 1;
 			GA.height(n) = 1;
-			GA.fillColor(n) = Color::Name::Black;
+			GA.fillColor(n) = BEND_COLOR;			
 			GA.x(n) = p.m_x;
 			GA.y(n) = p.m_y;
 
@@ -335,6 +344,7 @@ void BendPromotion(Graph& G, GraphAttributes& GA) {
 
 			bends_e.popFront();
 		}
+
 		edge e_ = G.newEdge(s, t);
 		GA.arrowType(e_) = ogdf::EdgeArrow::None;
 		GA.strokeColor(e_) = Color("#bababa");
@@ -434,14 +444,13 @@ double NodeOrthogonalityCriterion(Graph& G, GraphAttributes& GA) {
 					int dif = abs(GA.y(n) - GA.y(m));
 					if (dif != 0)
 						differences.pushBack(dif);
-				}
-				else if (GA.y(n) == GA.y(m)) {
+				} else if (GA.y(n) == GA.y(m)) {
 					int dif = abs(GA.x(n) - GA.x(m));
 					if (dif != 0)
 						differences.pushBack(dif);
-				}					
-			}				
-		}				
+				}
+			}								
+		}					
 	}
 
 	// use distances to find gcd of distance between nodes
@@ -453,25 +462,30 @@ double NodeOrthogonalityCriterion(Graph& G, GraphAttributes& GA) {
 	}
 
 	cout << "gcdResult: " << gcdResult << endl;
+	double minX = DBL_MAX, minY = DBL_MAX, maxX = 0, maxY = 0;
 
-	// find 'grid' sizes
-	double width = 0, height = 0;
 	for (node n : G.nodes) {
+		if (GA.x(n) < minX)
+			minX = GA.x(n);
 
-		double nodePosX = (GA.x(n) + (NODE_WIDTH /2)) / (gcdResult);
-		double nodePosY = (GA.y(n) + (NODE_HEIGHT /2)) / (gcdResult);
+		if (GA.x(n) > maxX)
+			maxX = GA.x(n);
 
-		if (nodePosX > width)
-			width = nodePosX;
+		if (GA.y(n) < minY)
+			minY = GA.y(n);
 
-		if (nodePosY > height)
-			height = nodePosY;
+		if (GA.y(n) > maxY)
+			maxY = GA.y(n);
 	}
+
+	double width = (maxX - minX) / gcdResult + 1;
+	double height = (maxY - minY)/ gcdResult + 1;
 
 	// calculate actual criterion value
 	cout << "width: " << width << endl;
 	cout << "height: " << height << endl;
 	double A = (width)*(height);
+
 	double Nno = G.nodes.size() / A;
 
 	return Nno;
@@ -570,62 +584,6 @@ void SetGraphLayout(Graph& G, GraphAttributes& GA) {
 	for (node n : G.nodes) {
 		GA.strokeWidth(n) = STROKEWIDTH;
 	}
-}
-
-// create testGraph to test criteria imlementations
-void CreateGraphTwo(Graph& graph, GraphAttributes& GA) {
-	// add nodes
-	node Adresses = graph.newNode();	
-	node Schools = graph.newNode();	
-	node Subjects = graph.newNode();	
-	node Parent_Adresses = graph.newNode();	
-	node Student_Adresses = graph.newNode();	
-	node Parents = graph.newNode();	
-	node Student_Parents = graph.newNode();	
-	node Teachers = graph.newNode();
-	node Classes = graph.newNode();
-	node Family_Members = graph.newNode();
-	node Students = graph.newNode();
-	node Student_Classes = graph.newNode();
-	node Families = graph.newNode();
-	node Homework = graph.newNode();
-	node Reports = graph.newNode();
-
-	GA.label(Adresses) = "Adresses";
-	GA.label(Schools) = "Schools";
-	GA.label(Subjects) = "Subjects";
-	GA.label(Parent_Adresses) = "Parent_Adresses";
-	GA.label(Student_Adresses) = "Student_Adresses";
-	GA.label(Parents) = "Parents";
-	GA.label(Student_Parents) = "Student_Parents";
-	GA.label(Teachers) = "Teachers";
-	GA.label(Classes) = "Classes";
-	GA.label(Family_Members) = "Family_Members";
-	GA.label(Students) = "Students";
-	GA.label(Student_Classes) = "Student_Classes";
-	GA.label(Families) = "Families";
-	GA.label(Homework) = "Homework";
-	GA.label(Reports) = "Reports";
-
-	// add edgraphes
-	edge SchoolsToAdresses = graph.newEdge(Schools, Adresses);
-	edge Parent_AdressesToAdresses = graph.newEdge(Parent_Adresses, Adresses);
-	edge Parent_AdressesToParents = graph.newEdge(Parent_Adresses, Parents);
-	edge Student_AdressesToAdresses = graph.newEdge(Student_Adresses, Adresses);
-	edge Student_AdressesToStudents = graph.newEdge(Student_Adresses, Students);
-	edge Student_ParentsToParents = graph.newEdge(Student_Parents, Parents);
-	edge Student_ParentsToStudents = graph.newEdge(Student_Parents, Students);
-	edge TeachersToSchools = graph.newEdge(Teachers, Schools);
-	edge ClassesToSubjects = graph.newEdge(Classes, Subjects);
-	edge ClassesToTeachers = graph.newEdge(Classes, Teachers);
-	edge Family_MembersToParents = graph.newEdge(Family_Members, Parents);
-	edge Family_MembersToFamilies = graph.newEdge(Family_Members, Families);
-	edge Family_MembersToStudents = graph.newEdge(Family_Members, Students);
-	edge Student_ClassesToStudents = graph.newEdge(Student_Classes, Students);
-	edge Student_ClassesToClasses = graph.newEdge(Student_Classes, Classes);
-	edge FamiliesToParents = graph.newEdge(Families, Parents);
-	edge HomeworkToStudents = graph.newEdge(Homework, Students);
-	edge ReportsToStudents = graph.newEdge(Reports, Students);	
 }
 
 /*
@@ -730,5 +688,298 @@ void GenerateSubgraph(Graph& G, GraphAttributes& GA, int graphSize, Graph& subGr
 	}
 }
 
+// Model 1
+void Model1(Graph& graph, GraphAttributes& GA) {
+	node Adresses = graph.newNode();
+	node Schools = graph.newNode();
+	node Subjects = graph.newNode();
+	node Parent_Adresses = graph.newNode();
+	node Student_Adresses = graph.newNode();
+	node Parents = graph.newNode();
+	node Student_Parents = graph.newNode();
+	node Teachers = graph.newNode();
+	node Classes = graph.newNode();
+	node Family_Members = graph.newNode();
+	node Students = graph.newNode();
+	node Student_Classes = graph.newNode();
+	node Families = graph.newNode();
+	node Homework = graph.newNode();
+	node Reports = graph.newNode();
 
+	GA.label(Adresses) = "Adresses";
+	GA.label(Schools) = "Schools";
+	GA.label(Subjects) = "Subjects";
+	GA.label(Parent_Adresses) = "Parent_Adresses";
+	GA.label(Student_Adresses) = "Student_Adresses";
+	GA.label(Parents) = "Parents";
+	GA.label(Student_Parents) = "Student_Parents";
+	GA.label(Teachers) = "Teachers";
+	GA.label(Classes) = "Classes";
+	GA.label(Family_Members) = "Family_Members";
+	GA.label(Students) = "Students";
+	GA.label(Student_Classes) = "Student_Classes";
+	GA.label(Families) = "Families";
+	GA.label(Homework) = "Homework";
+	GA.label(Reports) = "Reports";
+
+	edge SchoolsToAdresses = graph.newEdge(Schools, Adresses);
+	edge Parent_AdressesToAdresses = graph.newEdge(Parent_Adresses, Adresses);
+	edge Parent_AdressesToParents = graph.newEdge(Parent_Adresses, Parents);
+	edge Student_AdressesToAdresses = graph.newEdge(Student_Adresses, Adresses);
+	edge Student_AdressesToStudents = graph.newEdge(Student_Adresses, Students);
+	edge Student_ParentsToParents = graph.newEdge(Student_Parents, Parents);
+	edge Student_ParentsToStudents = graph.newEdge(Student_Parents, Students);
+	edge TeachersToSchools = graph.newEdge(Teachers, Schools);
+	edge ClassesToSubjects = graph.newEdge(Classes, Subjects);
+	edge ClassesToTeachers = graph.newEdge(Classes, Teachers);
+	edge Family_MembersToParents = graph.newEdge(Family_Members, Parents);
+	edge Family_MembersToFamilies = graph.newEdge(Family_Members, Families);
+	edge Family_MembersToStudents = graph.newEdge(Family_Members, Students);
+	edge Student_ClassesToStudents = graph.newEdge(Student_Classes, Students);
+	edge Student_ClassesToClasses = graph.newEdge(Student_Classes, Classes);
+	edge FamiliesToParents = graph.newEdge(Families, Parents);
+	edge HomeworkToStudents = graph.newEdge(Homework, Students);
+	edge ReportsToStudents = graph.newEdge(Reports, Students);
+}
+
+// Model 2
+void Model2(Graph& graph, GraphAttributes& GA) {
+	node Ref_Med_Type = graph.newNode();
+	node Medications = graph.newNode();
+	node Doctors = graph.newNode();
+	node Addresses = graph.newNode();
+	node Customers = graph.newNode();
+	node Pharma_Companies = graph.newNode();
+	node Prescriptions = graph.newNode();
+	node Ref_Payment_Methods = graph.newNode();
+	node Ref_Prescription_Status = graph.newNode();
+	node Brand_Name_Med = graph.newNode();
+	node Generic_Med = graph.newNode();
+	node Gen_to_Brand_Name_Correspondence = graph.newNode();
+	node Prescription_Items = graph.newNode();
+	node Items_Ordered = graph.newNode();
+	
+
+	GA.label(Ref_Med_Type) = "Ref_Med_Type";
+	GA.label(Medications) = "Medications";
+	GA.label(Doctors) = "Doctors";
+	GA.label(Addresses) = "Addresses";
+	GA.label(Customers) = "Customers";
+	GA.label(Pharma_Companies) = "Pharma_Companies";
+	GA.label(Prescriptions) = "Prescriptions";
+	GA.label(Ref_Payment_Methods) = "Ref_Payment_Methods";
+	GA.label(Ref_Prescription_Status) = "Ref_Prescription_Status";
+	GA.label(Brand_Name_Med) = "Brand_Name_Med";
+	GA.label(Generic_Med) = "Generic_Med";
+	GA.label(Gen_to_Brand_Name_Correspondence) = "Gen_to_Brand_Name_Correspondence";
+	GA.label(Prescription_Items) = "Prescription_Items";
+	GA.label(Items_Ordered) = "Items_Ordered";
+
+	edge e1 = graph.newEdge(Ref_Med_Type, Medications);
+	edge e2 = graph.newEdge(Pharma_Companies, Brand_Name_Med);
+	edge e3 = graph.newEdge(Medications, Brand_Name_Med);
+	edge e4 = graph.newEdge(Medications, Generic_Med);
+	edge e5 = graph.newEdge(Brand_Name_Med, Gen_to_Brand_Name_Correspondence);
+	edge e6 = graph.newEdge(Generic_Med, Gen_to_Brand_Name_Correspondence);
+	edge e7 = graph.newEdge(Medications, Prescription_Items);
+	edge e8 = graph.newEdge(Doctors, Addresses);
+	edge e9 = graph.newEdge(Doctors, Prescriptions);
+	edge e10 = graph.newEdge(Prescriptions, Prescription_Items);
+	edge e11 = graph.newEdge(Prescription_Items, Items_Ordered);
+	edge e12 = graph.newEdge(Addresses, Customers);
+	edge e13 = graph.newEdge(Customers, Prescriptions);
+	edge e14 = graph.newEdge(Prescriptions, Ref_Payment_Methods);
+	edge e15 = graph.newEdge(Prescriptions, Ref_Prescription_Status);	
+}
+
+// Model 3
+void Model3(Graph& graph, GraphAttributes& GA) {
+	node Customers = graph.newNode();
+	node Car_Features = graph.newNode();
+	node Cars_for_Sale = graph.newNode();
+	node Car_Models = graph.newNode();
+	node Addresses = graph.newNode();
+	node Customer_Preferences = graph.newNode();
+	node Car_Manufacturers = graph.newNode();
+	node features_on_Cars_for_Sale = graph.newNode();
+	node Vehicle_Categories = graph.newNode();
+	node Payment_Status = graph.newNode();
+	node Cars_Sold = graph.newNode();
+	node Customer_Payments = graph.newNode();
+	node Car_Loans = graph.newNode();
+	node Insurance_Policies = graph.newNode();
+	node Finance_Companies = graph.newNode();
+	node Insurance_Companies = graph.newNode();
+
+	GA.label(Customers) = "Customers";
+	GA.label(Car_Features) = "Car_Features";
+	GA.label(Cars_for_Sale) = "Cars_for_Sale";
+	GA.label(Car_Models) = "Car_Models";
+	GA.label(Addresses) = "Addresses";
+	GA.label(Customer_Preferences) = "Customer_Preferences";
+	GA.label(Car_Manufacturers) = "Car_Manufacturers";
+	GA.label(features_on_Cars_for_Sale) = "features_on_Cars_for_Sale";
+	GA.label(Vehicle_Categories) = "Vehicle_Categories";
+	GA.label(Payment_Status) = "Payment_Status";
+	GA.label(Cars_Sold) = "Cars_Sold";
+	GA.label(Customer_Payments) = "Customer_Payments";
+	GA.label(Car_Loans) = "Car_Loans";
+	GA.label(Insurance_Policies) = "Insurance_Policies";
+	GA.label(Finance_Companies) = "Finance_Companies";
+	GA.label(Insurance_Companies) = "Insurance_Companies";
+
+	edge e1 = graph.newEdge(Customers, Addresses);
+	edge e2 = graph.newEdge(Customers, Customer_Payments);
+	edge e3 = graph.newEdge(Customers, Cars_Sold);
+	edge e4 = graph.newEdge(Customers, Customer_Preferences);
+	edge e5 = graph.newEdge(Car_Features, Customer_Preferences);
+	edge e6 = graph.newEdge(Car_Features, features_on_Cars_for_Sale);
+	edge e7 = graph.newEdge(Cars_for_Sale, features_on_Cars_for_Sale);
+	edge e8 = graph.newEdge(Cars_for_Sale, Cars_Sold);
+	edge e9 = graph.newEdge(Cars_for_Sale, Car_Models);
+	edge e10 = graph.newEdge(Cars_for_Sale, Car_Manufacturers);
+	edge e11 = graph.newEdge(Cars_for_Sale, Vehicle_Categories);
+	edge e12 = graph.newEdge(Payment_Status, Customers);
+	edge e13 = graph.newEdge(Customers, Customer_Payments);
+	edge e14 = graph.newEdge(Cars_Sold, Customer_Payments);
+	edge e15 = graph.newEdge(Cars_Sold, Car_Loans);
+	edge e16 = graph.newEdge(Cars_Sold, Insurance_Policies);
+	edge e17 = graph.newEdge(Car_Loans, Finance_Companies);
+	edge e18 = graph.newEdge(Insurance_Policies, Insurance_Companies);
+}
+
+// Model 4
+void Model4(Graph& graph, GraphAttributes& GA) {
+	// Multiple
+	node Addresses = graph.newNode();
+	node Students = graph.newNode();
+
+	// 4.1
+	node Teachers = graph.newNode();	
+	node Assessment_Notes = graph.newNode();
+	node Detention = graph.newNode();
+	node Students_in_Detention = graph.newNode();
+	node Behaviour_Incident = graph.newNode();
+
+	GA.label(Teachers) = "Teachers";
+	GA.label(Addresses) = "Addresses";
+	GA.label(Students) = "Students";
+	GA.label(Assessment_Notes) = "Assessment_Notes";
+	GA.label(Detention) = "Medications";
+	GA.label(Students_in_Detention) = "Students_in_Detention";
+	GA.label(Behaviour_Incident) = "Behaviour_Incident";
+
+	edge e1 = graph.newEdge(Teachers, Addresses);
+	edge e2 = graph.newEdge(Teachers, Detention);
+	edge e3 = graph.newEdge(Teachers, Assessment_Notes);
+	edge e4 = graph.newEdge(Students, Assessment_Notes);
+	edge e5 = graph.newEdge(Students, Students_in_Detention);
+	edge e6 = graph.newEdge(Students, Behaviour_Incident);
+	edge e7 = graph.newEdge(Detention, Students_in_Detention);
+	edge e8 = graph.newEdge(Students_in_Detention, Behaviour_Incident);
+	edge e9 = graph.newEdge(Students, Addresses);
+
+	//4.2
+	node People = graph.newNode();
+	node Ref_Gender = graph.newNode();
+	node Ref_Subjects = graph.newNode();
+	node Classes = graph.newNode();
+	node Instructors = graph.newNode();
+	node Ref_Retest_Status_Codes = graph.newNode();
+	node Student_Classes = graph.newNode();
+	node Instructors_Classes = graph.newNode();
+	node Ref_Score_Status = graph.newNode();
+
+	GA.label(People) = "People";
+	GA.label(Ref_Gender) = "Ref_Gender";
+	GA.label(Ref_Subjects) = "Ref_Subjects";
+	GA.label(Classes) = "Classes";
+	GA.label(Instructors) = "Instructors";
+	GA.label(Ref_Retest_Status_Codes) = "Ref_Retest_Status_Codes";
+	GA.label(Student_Classes) = "Student_Classes";
+	GA.label(Instructors_Classes) = "Instructors_Classes";
+	GA.label(Ref_Score_Status) = "Ref_Score_Status";
+
+	edge ee1 = graph.newEdge(People, Addresses);
+	edge ee2 = graph.newEdge(People, Ref_Gender);
+	edge ee3 = graph.newEdge(People, Students);
+	edge ee4 = graph.newEdge(People, Instructors);
+	edge ee5 = graph.newEdge(Students, Student_Classes);
+	edge ee6 = graph.newEdge(Students, Ref_Subjects);
+	edge ee7 = graph.newEdge(Ref_Subjects, Classes);
+	edge ee8 = graph.newEdge(Classes, Instructors_Classes);
+	edge ee9 = graph.newEdge(Classes, Student_Classes);
+	edge ee10 = graph.newEdge(Student_Classes, Ref_Retest_Status_Codes);
+	edge ee11 = graph.newEdge(Instructors, Instructors_Classes);
+	edge ee12 = graph.newEdge(Student_Classes, Ref_Score_Status);
+
+	//4.3
+	node Ref_Academic_Years = graph.newNode();
+	node Ref_Salutations = graph.newNode();
+	node Ref_Staff_Roles = graph.newNode();
+	node Year_Groups = graph.newNode();
+	node Activities = graph.newNode();
+	node Staff = graph.newNode();
+	node Forms = graph.newNode();
+	node Scheduled_Activities = graph.newNode();
+	node Activities_run_by_Staff = graph.newNode();
+	node Student_Addresses = graph.newNode();
+	node Ref_Attainment_Levels = graph.newNode();
+	node Ref_Payment_Status = graph.newNode();
+	node Student_Activities = graph.newNode();
+
+	GA.label(Ref_Academic_Years) = "Ref_Academic_Years";
+	GA.label(Ref_Salutations) = "Ref_Salutations";
+	GA.label(Ref_Staff_Roles) = "Ref_Staff_Roles";
+	GA.label(Year_Groups) = "Year_Groups";
+	GA.label(Activities) = "Activities";
+	GA.label(Staff) = "Staff";
+	GA.label(Forms) = "Forms";
+	GA.label(Scheduled_Activities) = "Scheduled_Activities";
+	GA.label(Activities_run_by_Staff) = "Activities_run_by_Staff";
+	GA.label(Student_Addresses) = "Student_Addresses";
+	GA.label(Ref_Attainment_Levels) = "Ref_Attainment_Levels";
+	GA.label(Ref_Payment_Status) = "Ref_Payment_Status";
+	GA.label(Student_Activities) = "Student_Activities";
+
+	edge eee1 = graph.newEdge(Ref_Academic_Years, Scheduled_Activities);
+	edge eee2 = graph.newEdge(Activities, Scheduled_Activities);
+	edge eee3 = graph.newEdge(Ref_Salutations, Staff);
+	edge eee4 = graph.newEdge(Ref_Staff_Roles, Staff);
+	edge eee5 = graph.newEdge(Year_Groups, Staff);
+	edge eee6 = graph.newEdge(Forms, Staff);
+	edge eee7 = graph.newEdge(Forms, Students);
+	edge eee8 = graph.newEdge(Scheduled_Activities, Staff);
+	edge eee9 = graph.newEdge(Addresses, Student_Addresses);
+	edge eee10 = graph.newEdge(Students, Student_Addresses);
+	edge eee11 = graph.newEdge(Scheduled_Activities, Activities_run_by_Staff);
+	edge eee12 = graph.newEdge(Activities_run_by_Staff, Staff);
+	edge eee13 = graph.newEdge(Students, Student_Activities);
+	edge eee14 = graph.newEdge(Scheduled_Activities, Student_Activities);
+	edge eee15 = graph.newEdge(Year_Groups, Forms);
+	edge eee16 = graph.newEdge(Ref_Attainment_Levels, Student_Activities);
+	edge eee17 = graph.newEdge(Ref_Payment_Status, Student_Activities);
+}
+
+// Model 4
+void Model6(Graph& graph, GraphAttributes& GA) {
+	node Authors = graph.newNode();
+	GA.label(Authors) = "Authors";
+	node BookAuthor = graph.newNode();
+	GA.label(BookAuthor) = "BookAuthor";
+	node Books = graph.newNode();
+	GA.label(Books) = "Books";
+	node Employees = graph.newNode();
+	GA.label(Employees) = "Employees";
+	node Jobs = graph.newNode();
+	GA.label(Jobs) = "Jobs";
+	node Publishers = graph.newNode();
+	GA.label(Publishers) = "Publishers";
+
+	edge e0 = graph.newEdge(Jobs, Employees);
+	edge e1 = graph.newEdge(Publishers, Books);
+	edge e2 = graph.newEdge(Books, BookAuthor);
+	edge e3 = graph.newEdge(Publishers, Employees);
+	edge e4 = graph.newEdge(Authors, BookAuthor);
+}
 
