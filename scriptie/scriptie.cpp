@@ -75,7 +75,7 @@ void DFSUtil(Graph&, GraphAttributes&, node, node, int, bool[], int&, node[], Gr
 void GenerateSubgraph(Graph&, GraphAttributes&, int, Graph&, GraphAttributes&);
 double edgeLength(edge&, GraphAttributes&);
 
-const double NODE_WIDTH = 40.0;
+const double NODE_WIDTH = 20.0;
 const double NODE_HEIGHT = 20.0;
 const float STROKEWIDTH = 0.4f;
 const double PI = 3.141592653589793238463;
@@ -100,7 +100,7 @@ int main() {
 	//cout << "Enter file name to read in: " << endl;	
 	//cin >> file;
 	//CreateGraphFromJson(G, GA, file);
-	Model4(G, GA);
+	Model10(G, GA);
 
 	int maxIndex = 0;
 	for (node n : G.nodes) {
@@ -119,7 +119,7 @@ int main() {
 	int CROSSINGS = ERLayoutAlgorithm(G, GA);
 
 	// draw graph to svg file
-	GraphIO::drawSVG(GA, "C:\\Users\\Bart\\Desktop\\model4_2.svg", settings);
+	GraphIO::drawSVG(GA, "C:\\Users\\Bart\\Desktop\\ERD.svg", settings);
 
 	cout << "nr of crossings: " << CROSSINGS << endl;
 
@@ -273,8 +273,6 @@ int ERLayoutAlgorithm(Graph& G, GraphAttributes& GA) {
 	crossMin->setInserter(ves);
 
 	OrthoLayout *ol = new OrthoLayout;
-	ol->separation(NODE_WIDTH);
-	ol->cOverhang(1.0);
 
 	pl.setPlanarLayouter(ol);	
 
@@ -896,7 +894,6 @@ void Model4(Graph& graph, GraphAttributes& GA) {
 	GA.label(Students) = "Students";
 
 	// 4.1
-	/*
 	node Teachers = graph.newNode();	
 	node Assessment_Notes = graph.newNode();
 	node Detention = graph.newNode();
@@ -918,7 +915,6 @@ void Model4(Graph& graph, GraphAttributes& GA) {
 	edge e7 = graph.newEdge(Detention, Students_in_Detention);
 	edge e8 = graph.newEdge(Students_in_Detention, Behaviour_Incident);
 	edge e9 = graph.newEdge(Students, Addresses);
-	*/
 	
 	//4.2	
 	node People = graph.newNode();
@@ -953,8 +949,7 @@ void Model4(Graph& graph, GraphAttributes& GA) {
 	edge ee10 = graph.newEdge(Student_Classes, Ref_Retest_Status_Codes);
 	edge ee11 = graph.newEdge(Instructors, Instructors_Classes);
 	edge ee12 = graph.newEdge(Student_Classes, Ref_Score_Status);
-	
-	/*	
+		
 	//4.3	
 	node Ref_Academic_Years = graph.newNode();
 	node Ref_Salutations = graph.newNode();
@@ -1001,7 +996,6 @@ void Model4(Graph& graph, GraphAttributes& GA) {
 	edge eee15 = graph.newEdge(Year_Groups, Forms);
 	edge eee16 = graph.newEdge(Ref_Attainment_Levels, Student_Activities);
 	edge eee17 = graph.newEdge(Ref_Payment_Status, Student_Activities);	
-	*/
 }
 
 // Model 6
