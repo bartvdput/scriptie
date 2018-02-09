@@ -41,6 +41,7 @@
 #include <ogdf/planarlayout/PlanarDrawLayout.h>
 #include <ogdf/planarlayout/PlanarStraightLayout.h>
 #include <ogdf/graphalg/PageRank.h>
+#include <ogdf/planarlayout/FPPLayout.h>
 
 using namespace ogdf;
 using namespace std;
@@ -75,7 +76,7 @@ void DFSUtil(Graph&, GraphAttributes&, node, node, int, bool[], int&, node[], Gr
 void GenerateSubgraph(Graph&, GraphAttributes&, int, Graph&, GraphAttributes&);
 double edgeLength(edge&, GraphAttributes&);
 
-const double NODE_WIDTH = 20.0;
+const double NODE_WIDTH = 40.0;
 const double NODE_HEIGHT = 20.0;
 const float STROKEWIDTH = 0.4f;
 const double PI = 3.141592653589793238463;
@@ -100,7 +101,7 @@ int main() {
 	//cout << "Enter file name to read in: " << endl;	
 	//cin >> file;
 	//CreateGraphFromJson(G, GA, file);
-	Model10(G, GA);
+	Model4(G, GA);
 
 	int maxIndex = 0;
 	for (node n : G.nodes) {
@@ -467,12 +468,15 @@ double NodeOrthogonalityCriterion(Graph& G, GraphAttributes& GA) {
 	}
 
 	// use distances to find gcd of distance between nodes
-	itX = differencesX.get(0);
-	int gcdResultX = *itX;
-	for (int i = 1; i<countX; i++) {
-		itX = differencesX.get(i);
-		gcdResultX = Math::gcd(gcdResultX, *itX);
-	}
+	int gcdResultX = 1;
+	if (differencesX.size() > 0) {
+		itX = differencesX.get(0);	
+		gcdResultX = *itX;
+		for (int i = 1; i<countX; i++) {
+			itX = differencesX.get(i);
+			gcdResultX = Math::gcd(gcdResultX, *itX);
+		}
+	}	
 
 	int gcdResultY = 1;
 	if (differencesY.size() > 0) {
